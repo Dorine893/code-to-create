@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   BookOpen, Trophy, Target, LogOut, Plus, ExternalLink, CheckCircle2,
   Circle, Pencil, X, Sparkles, User, Users, ChevronRight, ChevronDown,
-  Link2, Trash2, LayoutDashboard, Image as ImageIcon
+  Link2, Trash2, LayoutDashboard, Image as ImageIcon, Code, Copy,
+  Camera, Maximize2
 } from "lucide-react";
 import { auth, db } from "./firebase";
 import {
@@ -32,9 +33,38 @@ const LESSONS = [
 ];
 
 const NAVY = "text-slate-900";
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per image
 // Firebase Auth needs an email. We derive one from the username so students
 // can log in with just a username + password.
 const usernameToEmail = (username) => `${username.trim().toLowerCase()}@codetocreate.local`;
+
+// Cloudinary (free, no credit card) handles all image uploads/hosting.
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+async function uploadFiles(files, folder) {
+  const uploaded = [];
+  for (const file of files) {
+    if (!file || file.size > MAX_FILE_BYTES) continue;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+      formData.append("folder", folder);
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      const data = await res.json();
+      if (data.secure_url) {
+        uploaded.push({ url: data.secure_url, path: data.public_id });
+      }
+    } catch (e) {
+      console.error("image upload error", e);
+    }
+  }
+  return uploaded;
+}
 
 function Card({ children, className = "" }) {
   return (
@@ -54,6 +84,163 @@ function Badge({ children, tone = "slate" }) {
     <span className={`inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide px-2 py-1 rounded-full border ${tones[tone]}`}>
       {children}
     </span>
+  );
+}
+
+function Avatar({ url, name, size = 8 }) {
+  const sizeClass = { 8: "w-8 h-8 text-xs", 10: "w-10 h-10 text-sm", 16: "w-16 h-16 text-lg", 24: "w-24 h-24 text-2xl" }[size] || "w-8 h-8 text-xs";
+  if (url) {
+    return <img src={url} alt={name} className={`${sizeClass} rounded-full object-cover border-2 border-slate-900 shrink-0`} />;
+  }
+  const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div className={`${sizeClass} rounded-full bg-slate-900 text-white flex items-center justify-center font-extrabold shrink-0`}>
+      {initial}
+    </div>
+  );
+}
+
+function ImagePicker({ existingImages = [], onRemoveExisting, pendingPreviews, onAddFiles, onRemovePending, label = "Screenshots (optional)" }) {
+  return (
+    <div>
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
+      <div className="flex flex-wrap gap-2 mt-1.5">
+        {existingImages.map((img, i) => (
+          <div key={img.path || i} className="relative">
+            <img src={img.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-slate-300" />
+            {onRemoveExisting && (
+              <button
+                type="button"
+                onClick={() => onRemoveExisting(i)}
+                className="absolute -top-1.5 -right-1.5 bg-slate-900 text-white rounded-full w-5 h-5 flex items-center justify-center"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        ))}
+        {pendingPreviews.map((src, i) => (
+          <div key={`pending-${i}`} className="relative">
+            <img src={src} alt="" className="w-16 h-16 object-cover rounded-lg border-2 border-amber-400" />
+            <button
+              type="button"
+              onClick={() => onRemovePending(i)}
+              className="absolute -top-1.5 -right-1.5 bg-slate-900 text-white rounded-full w-5 h-5 flex items-center justify-center"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+        <label className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-slate-500 text-slate-400 hover:text-slate-600">
+          <Camera className="w-5 h-5" />
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              onAddFiles(Array.from(e.target.files || []));
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+      <p className="text-[11px] text-slate-400 mt-1">Up to 5MB per image.</p>
+    </div>
+  );
+}
+
+function CodeField({ value, onChange, label = "Paste your code (optional)" }) {
+  return (
+    <div>
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Paste your HTML/CSS/JS here..."
+        rows={5}
+        spellCheck={false}
+        className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-xs font-mono bg-slate-50"
+      />
+    </div>
+  );
+}
+
+function ThumbRow({ images }) {
+  if (!images || images.length === 0) return null;
+  const shown = images.slice(0, 3);
+  const extra = images.length - shown.length;
+  return (
+    <div className="flex gap-1.5 mt-2">
+      {shown.map((img, i) => (
+        <img key={img.path || i} src={img.url} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-200" />
+      ))}
+      {extra > 0 && (
+        <div className="w-14 h-14 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
+          +{extra}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SubmissionModal({ item, onClose }) {
+  if (!item) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl border-2 border-slate-900 max-w-2xl w-full max-h-[85vh] overflow-y-auto p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <Avatar url={item.photoURL} name={item.displayName} size={10} />
+            <div>
+              <h3 className={`font-extrabold text-lg ${NAVY}`}>{item.title || "Untitled"}</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">by {item.displayName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {(item.content || item.description) && (
+          <p className="text-slate-700 text-sm whitespace-pre-wrap mb-3">{item.content || item.description}</p>
+        )}
+
+        {item.link && (
+          <a href={item.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mb-3">
+            <ExternalLink className="w-3.5 h-3.5" /> Open link
+          </a>
+        )}
+
+        {item.images?.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+            {item.images.map((img, i) => (
+              <img key={img.path || i} src={img.url} alt="" className="rounded-lg border border-slate-200 w-full h-32 object-cover" />
+            ))}
+          </div>
+        )}
+
+        {item.code && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-400 flex items-center gap-1">
+                <Code className="w-3.5 h-3.5" /> Code
+              </span>
+              <button
+                onClick={() => navigator.clipboard?.writeText(item.code)}
+                className="text-xs font-bold text-amber-700 hover:underline flex items-center gap-1"
+              >
+                <Copy className="w-3 h-3" /> Copy
+              </button>
+            </div>
+            <pre className="bg-slate-900 text-slate-100 text-xs rounded-lg p-3 overflow-x-auto whitespace-pre-wrap font-mono">{item.code}</pre>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -98,14 +285,15 @@ export default function App() {
   const [posts, setPosts] = useState([]);
   const [gallery, setGallery] = useState([]);
 
-const [studentData, setStudentData] = useState({
-  goal: "",
-  displayName: "",
-  username: "",
-  role: "student",
-  items: {}
-});
-const isAdmin = studentData.role === "admin";
+  const [studentData, setStudentData] = useState({
+    goal: "",
+    displayName: "",
+    username: "",
+    role: "student",
+    photoURL: "",
+    items: {}
+  });
+  const isAdmin = studentData.role === "admin";
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState({ username: "", password: "", displayName: "" });
   const [authError, setAuthError] = useState("");
@@ -113,13 +301,19 @@ const isAdmin = studentData.role === "admin";
 
   const [view, setView] = useState("dashboard");
   const [expandedLesson, setExpandedLesson] = useState(null);
-  const [lessonDraft, setLessonDraft] = useState({});
+  const [lessonDraft, setLessonDraft] = useState({ note: "", link: "", code: "", images: [], pendingFiles: [], pendingPreviews: [] });
   const [editingLinkFor, setEditingLinkFor] = useState(null);
   const [linkDraft, setLinkDraft] = useState("");
 
   const [goalDraft, setGoalDraft] = useState("");
-  const [postDraft, setPostDraft] = useState({ title: "", content: "", link: "" });
-  const [galleryDraft, setGalleryDraft] = useState({ title: "", link: "", description: "" });
+  const [postDraft, setPostDraft] = useState({ title: "", content: "", link: "", code: "", pendingFiles: [], pendingPreviews: [] });
+  const [galleryDraft, setGalleryDraft] = useState({ title: "", link: "", description: "", code: "", pendingFiles: [], pendingPreviews: [] });
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  const [modalItem, setModalItem] = useState(null);
+  const [savingLesson, setSavingLesson] = useState(false);
+  const [postBusy, setPostBusy] = useState(false);
+  const [galleryBusy, setGalleryBusy] = useState(false);
 
   // Auth state + student profile
   useEffect(() => {
@@ -133,13 +327,8 @@ const isAdmin = studentData.role === "admin";
           setGoalDraft(data.goal || "");
         }
       } else {
-setStudentData({
-  goal: "",
-  displayName: "",
-  username: "",
-  role: "student",
-  items: {}
-});      }
+        setStudentData({ goal: "", displayName: "", username: "", role: "student", photoURL: "", items: {} });
+      }
       setBooting(false);
     });
     return unsub;
@@ -176,6 +365,7 @@ setStudentData({
           displayName: authForm.displayName || uname,
           role: "student",
           goal: "",
+          photoURL: "",
           items: {},
           createdAt: new Date().toISOString(),
         };
@@ -210,32 +400,81 @@ setStudentData({
     await saveStudentData({ ...studentData, goal: goalDraft });
   };
 
+  const handleAvatarChange = async (file) => {
+    if (!file || !firebaseUser) return;
+    if (file.size > MAX_FILE_BYTES) {
+      alert("Please choose an image under 5MB.");
+      return;
+    }
+    setAvatarBusy(true);
+    const [uploaded] = await uploadFiles([file], `avatars/${firebaseUser.uid}`);
+    if (uploaded) {
+      await saveStudentData({ ...studentData, photoURL: uploaded.url });
+    }
+    setAvatarBusy(false);
+  };
+
   const toggleLessonExpand = (id) => {
-    setExpandedLesson(expandedLesson === id ? null : id);
-    const existing = studentData.items?.[id] || { status: "not_started", note: "", link: "" };
-    setLessonDraft({ ...existing });
+    if (expandedLesson === id) {
+      setExpandedLesson(null);
+      return;
+    }
+    setExpandedLesson(id);
+    const existing = studentData.items?.[id] || {};
+    setLessonDraft({
+      note: existing.note || "",
+      link: existing.link || "",
+      code: existing.code || "",
+      images: existing.images || [],
+      pendingFiles: [],
+      pendingPreviews: [],
+    });
+  };
+
+  const addLessonFiles = (files) => {
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setLessonDraft((d) => ({
+      ...d,
+      pendingFiles: [...d.pendingFiles, ...files],
+      pendingPreviews: [...d.pendingPreviews, ...previews],
+    }));
+  };
+  const removeLessonPending = (i) => {
+    setLessonDraft((d) => ({
+      ...d,
+      pendingFiles: d.pendingFiles.filter((_, idx) => idx !== i),
+      pendingPreviews: d.pendingPreviews.filter((_, idx) => idx !== i),
+    }));
+  };
+  const removeLessonExisting = (i) => {
+    setLessonDraft((d) => ({ ...d, images: d.images.filter((_, idx) => idx !== i) }));
   };
 
   const saveLessonProgress = async (id, markComplete) => {
+    setSavingLesson(true);
+    const uploaded = await uploadFiles(lessonDraft.pendingFiles, `lessons/${firebaseUser.uid}/${id}`);
+    const finalImages = [...lessonDraft.images, ...uploaded];
     const next = {
       ...studentData,
       items: {
         ...studentData.items,
         [id]: {
-          status: markComplete ? "complete" : (lessonDraft.note || lessonDraft.link ? "in_progress" : "not_started"),
+          status: markComplete ? "complete" : (lessonDraft.note || lessonDraft.link || lessonDraft.code || finalImages.length ? "in_progress" : "not_started"),
           note: lessonDraft.note || "",
           link: lessonDraft.link || "",
+          code: lessonDraft.code || "",
+          images: finalImages,
           updatedAt: new Date().toISOString(),
         },
       },
     };
     await saveStudentData(next);
+    setSavingLesson(false);
     setExpandedLesson(null);
   };
 
   const saveLessonLink = async (id) => {
     if (!isAdmin) return;
-
     const next = { ...lessonLinks, [id]: linkDraft };
     setLessonLinks(next);
     await setDoc(doc(db, "config", "lessonLinks"), next);
@@ -243,40 +482,78 @@ setStudentData({
     setLinkDraft("");
   };
 
+  const addPostFiles = (files) => {
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setPostDraft((d) => ({ ...d, pendingFiles: [...d.pendingFiles, ...files], pendingPreviews: [...d.pendingPreviews, ...previews] }));
+  };
+  const removePostPending = (i) => {
+    setPostDraft((d) => ({
+      ...d,
+      pendingFiles: d.pendingFiles.filter((_, idx) => idx !== i),
+      pendingPreviews: d.pendingPreviews.filter((_, idx) => idx !== i),
+    }));
+  };
+
   const submitPost = async (e) => {
     e.preventDefault();
-    if (!postDraft.title.trim() && !postDraft.content.trim()) return;
+    if (!postDraft.title.trim() && !postDraft.content.trim() && !postDraft.code.trim() && postDraft.pendingFiles.length === 0) return;
+    setPostBusy(true);
+    const images = await uploadFiles(postDraft.pendingFiles, `posts/${firebaseUser.uid}`);
     await addDoc(collection(db, "posts"), {
       uid: firebaseUser.uid,
       displayName: studentData.displayName || studentData.username,
+      photoURL: studentData.photoURL || "",
       title: postDraft.title,
       content: postDraft.content,
       link: postDraft.link,
+      code: postDraft.code,
+      images,
       createdAt: new Date().toISOString(),
     });
-    setPostDraft({ title: "", content: "", link: "" });
+    setPostDraft({ title: "", content: "", link: "", code: "", pendingFiles: [], pendingPreviews: [] });
+    setPostBusy(false);
   };
 
-  const deletePost = async (id) => {
-    await deleteDoc(doc(db, "posts", id));
+  const deletePost = async (post) => {
+    // Note: this removes the post from the site. The images stay stored on
+    // Cloudinary's free tier (harmless — 25GB is a lot of screenshots).
+    await deleteDoc(doc(db, "posts", post.id));
+  };
+
+  const addGalleryFiles = (files) => {
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setGalleryDraft((d) => ({ ...d, pendingFiles: [...d.pendingFiles, ...files], pendingPreviews: [...d.pendingPreviews, ...previews] }));
+  };
+  const removeGalleryPending = (i) => {
+    setGalleryDraft((d) => ({
+      ...d,
+      pendingFiles: d.pendingFiles.filter((_, idx) => idx !== i),
+      pendingPreviews: d.pendingPreviews.filter((_, idx) => idx !== i),
+    }));
   };
 
   const submitGallery = async (e) => {
     e.preventDefault();
     if (!galleryDraft.title.trim() || !galleryDraft.link.trim()) return;
+    setGalleryBusy(true);
+    const images = await uploadFiles(galleryDraft.pendingFiles, `gallery/${firebaseUser.uid}`);
     await addDoc(collection(db, "gallery"), {
       uid: firebaseUser.uid,
       displayName: studentData.displayName || studentData.username,
+      photoURL: studentData.photoURL || "",
       title: galleryDraft.title,
       link: galleryDraft.link,
       description: galleryDraft.description,
+      code: galleryDraft.code,
+      images,
       createdAt: new Date().toISOString(),
     });
-    setGalleryDraft({ title: "", link: "", description: "" });
+    setGalleryDraft({ title: "", link: "", description: "", code: "", pendingFiles: [], pendingPreviews: [] });
+    setGalleryBusy(false);
   };
 
-  const deleteGalleryItem = async (id) => {
-    await deleteDoc(doc(db, "gallery", id));
+  const deleteGalleryItem = async (item) => {
+    await deleteDoc(doc(db, "gallery", item.id));
   };
 
   const completedCount = Object.values(studentData.items || {}).filter((i) => i.status === "complete").length;
@@ -372,6 +649,8 @@ setStudentData({
 
   return (
     <div className="min-h-screen bg-slate-100">
+      <SubmissionModal item={modalItem} onClose={() => setModalItem(null)} />
+
       <header className="bg-white border-b-2 border-slate-900 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -387,12 +666,8 @@ setStudentData({
             <NavButton id="gallery" icon={ImageIcon} label="Gallery" />
             <NavButton id="profile" icon={User} label="Profile" />
             {isAdmin && (
-            <NavButton
-              id="admin"
-              icon={User}
-              label="Admin"
-            />
-          )}
+              <NavButton id="admin" icon={User} label="Admin" />
+            )}
           </div>
           <button onClick={logout} className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-900">
             <LogOut className="w-4 h-4" />
@@ -407,9 +682,12 @@ setStudentData({
             <Card className="p-5 flex flex-col sm:flex-row items-center gap-6">
               <ProgressRing completed={completedCount} />
               <div className="flex-1 text-center sm:text-left">
-                <h2 className={`text-2xl font-extrabold ${NAVY}`}>
-                  Welcome back, {studentData.displayName || studentData.username}
-                </h2>
+                <div className="flex items-center gap-3 justify-center sm:justify-start">
+                  <Avatar url={studentData.photoURL} name={studentData.displayName || studentData.username} size={10} />
+                  <h2 className={`text-2xl font-extrabold ${NAVY}`}>
+                    Welcome back, {studentData.displayName || studentData.username}
+                  </h2>
+                </div>
                 <p className="text-slate-500 font-medium mt-1">
                   {completedCount === 14
                     ? "All 14 lessons complete — nice work! Check your certification steps in Lesson 14."
@@ -508,6 +786,7 @@ setStudentData({
                         {item.status === "complete" && <Badge tone="green">Complete</Badge>}
                       </div>
                       <h3 className={`font-bold ${NAVY} truncate`}>{lesson.title}</h3>
+                      <ThumbRow images={item.images} />
                     </div>
                     {isOpen ? <ChevronDown className="w-5 h-5 text-slate-400 shrink-0" /> : <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" />}
                   </button>
@@ -543,10 +822,7 @@ setStudentData({
                             </a>
                             {isAdmin && (
                               <button
-                                onClick={() => {
-                                  setEditingLinkFor(lesson.id);
-                                  setLinkDraft(link);
-                                }}
+                                onClick={() => { setEditingLinkFor(lesson.id); setLinkDraft(link); }}
                                 className="text-slate-400 hover:text-slate-700"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -554,23 +830,20 @@ setStudentData({
                             )}
                           </div>
                         ) : (
-                        isAdmin && (
-                          <button
-                            onClick={() => {
-                              setEditingLinkFor(lesson.id);
-                              setLinkDraft("");
-                            }}
-                            className="mt-1 flex items-center gap-1 text-sm font-medium text-slate-400 hover:text-slate-700"
-                          >
-                            <Link2 className="w-3.5 h-3.5" />
-                            No slides added yet — add link
-                          </button>
-                                     )
-                      )}                     
+                          isAdmin && (
+                            <button
+                              onClick={() => { setEditingLinkFor(lesson.id); setLinkDraft(""); }}
+                              className="mt-1 flex items-center gap-1 text-sm font-medium text-slate-400 hover:text-slate-700"
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                              No slides added yet — add link
+                            </button>
+                          )
+                        )}
                       </div>
 
                       <div>
-                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Your progress</span>
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Your progress notes</span>
                         <textarea
                           value={lessonDraft.note || ""}
                           onChange={(e) => setLessonDraft({ ...lessonDraft, note: e.target.value })}
@@ -578,26 +851,46 @@ setStudentData({
                           rows={3}
                           className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
                         />
+                      </div>
+
+                      <CodeField
+                        value={lessonDraft.code || ""}
+                        onChange={(v) => setLessonDraft({ ...lessonDraft, code: v })}
+                      />
+
+                      <ImagePicker
+                        label="Photos of your progress (optional)"
+                        existingImages={lessonDraft.images}
+                        onRemoveExisting={removeLessonExisting}
+                        pendingPreviews={lessonDraft.pendingPreviews}
+                        onAddFiles={addLessonFiles}
+                        onRemovePending={removeLessonPending}
+                      />
+
+                      <div>
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Link to your code (optional)</span>
                         <input
                           value={lessonDraft.link || ""}
                           onChange={(e) => setLessonDraft({ ...lessonDraft, link: e.target.value })}
-                          placeholder="Link to your code / CodePen / repo (optional)"
-                          className="w-full mt-2 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                          placeholder="CodePen / Replit / GitHub repo link"
+                          className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
                         />
                       </div>
 
                       <div className="flex gap-2">
                         <button
+                          disabled={savingLesson}
                           onClick={() => saveLessonProgress(lesson.id, false)}
-                          className="flex-1 border-2 border-slate-900 text-slate-900 font-bold text-sm py-2 rounded-lg hover:bg-slate-100"
+                          className="flex-1 border-2 border-slate-900 text-slate-900 font-bold text-sm py-2 rounded-lg hover:bg-slate-100 disabled:opacity-60"
                         >
-                          Save progress
+                          {savingLesson ? "Saving…" : "Save progress"}
                         </button>
                         <button
+                          disabled={savingLesson}
                           onClick={() => saveLessonProgress(lesson.id, true)}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-2 rounded-lg"
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-2 rounded-lg disabled:opacity-60"
                         >
-                          Mark complete
+                          {savingLesson ? "Saving…" : "Mark complete"}
                         </button>
                       </div>
                     </div>
@@ -615,7 +908,7 @@ setStudentData({
               <p className="text-slate-500 font-medium">Post anything you're making — side projects, experiments, questions, wins.</p>
             </div>
             <Card className="p-4">
-              <form onSubmit={submitPost} className="space-y-2">
+              <form onSubmit={submitPost} className="space-y-3">
                 <input
                   value={postDraft.title}
                   onChange={(e) => setPostDraft({ ...postDraft, title: e.target.value })}
@@ -629,14 +922,20 @@ setStudentData({
                   rows={3}
                   className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
                 />
+                <CodeField value={postDraft.code} onChange={(v) => setPostDraft({ ...postDraft, code: v })} />
+                <ImagePicker
+                  pendingPreviews={postDraft.pendingPreviews}
+                  onAddFiles={addPostFiles}
+                  onRemovePending={removePostPending}
+                />
                 <input
                   value={postDraft.link}
                   onChange={(e) => setPostDraft({ ...postDraft, link: e.target.value })}
                   placeholder="Link (optional)"
                   className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
                 />
-                <button type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg">
-                  <Plus className="w-4 h-4" /> Post
+                <button disabled={postBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
+                  <Plus className="w-4 h-4" /> {postBusy ? "Posting…" : "Post"}
                 </button>
               </form>
             </Card>
@@ -646,26 +945,34 @@ setStudentData({
                 <p className="text-center text-slate-400 font-medium py-8">Nothing here yet — be the first to post.</p>
               )}
               {posts.map((p) => (
-                <Card key={p.id} className="p-4">
+                <Card key={p.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(p)}>
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wide">
-                        <Users className="w-3.5 h-3.5" /> {p.displayName}
+                    <div className="flex items-center gap-2.5">
+                      <Avatar url={p.photoURL} name={p.displayName} />
+                      <div>
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wide">{p.displayName}</div>
+                        {p.title && <h3 className={`font-extrabold ${NAVY}`}>{p.title}</h3>}
                       </div>
-                      {p.title && <h3 className={`font-extrabold ${NAVY} mt-1`}>{p.title}</h3>}
                     </div>
-                    {p.uid === firebaseUser.uid && (
-                      <button onClick={() => deletePost(p.id)} className="text-slate-300 hover:text-red-600 shrink-0">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
+                      {p.uid === firebaseUser.uid && (
+                        <button onClick={(e) => { e.stopPropagation(); deletePost(p); }} className="text-slate-300 hover:text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {p.content && <p className="text-slate-700 text-sm mt-2 whitespace-pre-wrap line-clamp-3">{p.content}</p>}
+                  <ThumbRow images={p.images} />
+                  <div className="flex items-center gap-3 mt-2">
+                    {p.code && <Badge tone="slate"><Code className="w-3 h-3" /> Has code</Badge>}
+                    {p.link && (
+                      <a href={p.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline">
+                        <ExternalLink className="w-3.5 h-3.5" /> View link
+                      </a>
                     )}
                   </div>
-                  {p.content && <p className="text-slate-700 text-sm mt-1 whitespace-pre-wrap">{p.content}</p>}
-                  {p.link && (
-                    <a href={p.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
-                      <ExternalLink className="w-3.5 h-3.5" /> View link
-                    </a>
-                  )}
                 </Card>
               ))}
             </div>
@@ -679,7 +986,7 @@ setStudentData({
               <p className="text-slate-500 font-medium">Finished portfolio sites, shared for the whole class to see.</p>
             </div>
             <Card className="p-4">
-              <form onSubmit={submitGallery} className="space-y-2">
+              <form onSubmit={submitGallery} className="space-y-3">
                 <input
                   value={galleryDraft.title}
                   onChange={(e) => setGalleryDraft({ ...galleryDraft, title: e.target.value })}
@@ -699,8 +1006,14 @@ setStudentData({
                   rows={2}
                   className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
                 />
-                <button type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg">
-                  <Plus className="w-4 h-4" /> Add to gallery
+                <CodeField value={galleryDraft.code} onChange={(v) => setGalleryDraft({ ...galleryDraft, code: v })} />
+                <ImagePicker
+                  pendingPreviews={galleryDraft.pendingPreviews}
+                  onAddFiles={addGalleryFiles}
+                  onRemovePending={removeGalleryPending}
+                />
+                <button disabled={galleryBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
+                  <Plus className="w-4 h-4" /> {galleryBusy ? "Adding…" : "Add to gallery"}
                 </button>
               </form>
             </Card>
@@ -709,18 +1022,25 @@ setStudentData({
                 <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">No portfolios yet — finish Lesson 14 and add yours!</p>
               )}
               {gallery.map((g) => (
-                <Card key={g.id} className="p-4">
+                <Card key={g.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(g)}>
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className={`font-extrabold ${NAVY}`}>{g.title}</h3>
-                    {g.uid === firebaseUser.uid && (
-                      <button onClick={() => deleteGalleryItem(g.id)} className="text-slate-300 hover:text-red-600 shrink-0">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2.5">
+                      <Avatar url={g.photoURL} name={g.displayName} />
+                      <h3 className={`font-extrabold ${NAVY}`}>{g.title}</h3>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
+                      {g.uid === firebaseUser.uid && (
+                        <button onClick={(e) => { e.stopPropagation(); deleteGalleryItem(g); }} className="text-slate-300 hover:text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-0.5">by {g.displayName}</p>
-                  {g.description && <p className="text-slate-700 text-sm mt-2">{g.description}</p>}
-                  <a href={g.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-0.5 ml-[42px]">by {g.displayName}</p>
+                  {g.description && <p className="text-slate-700 text-sm mt-2 line-clamp-2">{g.description}</p>}
+                  <ThumbRow images={g.images} />
+                  <a href={g.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
                     <ExternalLink className="w-3.5 h-3.5" /> Visit site
                   </a>
                 </Card>
@@ -733,6 +1053,24 @@ setStudentData({
           <div className="space-y-5 max-w-lg">
             <h2 className={`text-2xl font-extrabold ${NAVY}`}>Profile</h2>
             <Card className="p-5 space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar url={studentData.photoURL} name={studentData.displayName || studentData.username} size={24} />
+                <div>
+                  <label className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-700 hover:underline cursor-pointer">
+                    <Camera className="w-4 h-4" />
+                    {avatarBusy ? "Uploading…" : "Change profile picture"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={avatarBusy}
+                      onChange={(e) => handleAvatarChange(e.target.files?.[0])}
+                    />
+                  </label>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Optional — under 5MB.</p>
+                </div>
+              </div>
+
               <div>
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Name</span>
                 <p className={`font-bold ${NAVY}`}>{studentData.displayName || studentData.username}</p>
@@ -761,51 +1099,39 @@ setStudentData({
             </Card>
           </div>
         )}
+
         {view === "admin" && isAdmin && (
-  <div className="space-y-6">
-    <h2 className="text-3xl font-extrabold text-slate-900">
-      Admin Dashboard
-    </h2>
+          <div className="space-y-6">
+            <h2 className="text-3xl font-extrabold text-slate-900">
+              Admin Dashboard
+            </h2>
 
-    <Card className="p-5">
-      <h3 className="font-bold text-xl mb-3">
-        Welcome, Admin
-      </h3>
+            <Card className="p-5">
+              <h3 className="font-bold text-xl mb-3">
+                Welcome, Admin
+              </h3>
 
-      <p className="text-slate-600 mb-4">
-        This is where you'll manage the platform.
-      </p>
+              <p className="text-slate-600 mb-4">
+                This is where you'll manage the platform.
+              </p>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-
-        <button
-          className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100"
-        >
-          📚 Manage Lessons
-        </button>
-
-        <button
-          className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100"
-        >
-          📢 Announcements
-        </button>
-
-        <button
-          className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100"
-        >
-          👩‍🎓 Students
-        </button>
-
-        <button
-          className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100"
-        >
-          🖼 Gallery
-        </button>
-
-      </div>
-    </Card>
-  </div>
-)}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
+                  📚 Manage Lessons
+                </button>
+                <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
+                  📢 Announcements
+                </button>
+                <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
+                  👩‍🎓 Students
+                </button>
+                <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
+                  🖼 Gallery
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
       </main>
     </div>
   );
