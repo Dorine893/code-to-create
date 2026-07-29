@@ -234,6 +234,8 @@ setStudentData({
   };
 
   const saveLessonLink = async (id) => {
+    if (!isAdmin) return;
+
     const next = { ...lessonLinks, [id]: linkDraft };
     setLessonLinks(next);
     await setDoc(doc(db, "config", "lessonLinks"), next);
@@ -539,18 +541,32 @@ setStudentData({
                             <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline">
                               <ExternalLink className="w-3.5 h-3.5" /> Open Week {lesson.id} slides
                             </a>
-                            <button onClick={() => { setEditingLinkFor(lesson.id); setLinkDraft(link); }} className="text-slate-400 hover:text-slate-700">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => {
+                                  setEditingLinkFor(lesson.id);
+                                  setLinkDraft(link);
+                                }}
+                                className="text-slate-400 hover:text-slate-700"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         ) : (
+                        isAdmin && (
                           <button
-                            onClick={() => { setEditingLinkFor(lesson.id); setLinkDraft(""); }}
+                            onClick={() => {
+                              setEditingLinkFor(lesson.id);
+                              setLinkDraft("");
+                            }}
                             className="mt-1 flex items-center gap-1 text-sm font-medium text-slate-400 hover:text-slate-700"
                           >
-                            <Link2 className="w-3.5 h-3.5" /> No slides added yet — add link
+                            <Link2 className="w-3.5 h-3.5" />
+                            No slides added yet — add link
                           </button>
-                        )}
+                                     )
+                      )}                     
                       </div>
 
                       <div>
