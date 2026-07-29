@@ -15,20 +15,20 @@ import {
 } from "firebase/firestore";
 
 const LESSONS = [
-  { id: 1, title: "Intro to the Web & HTML Basics", topics: ["How the web works", "HTML tags & elements", "Your first page"] },
-  { id: 2, title: "Semantic HTML & Document Structure", topics: ["Semantic tags", "Headings & landmarks", "Document outline"] },
-  { id: 3, title: "CSS Fundamentals", topics: ["Selectors", "Color & typography", "The cascade"] },
-  { id: 4, title: "The Box Model & Layout Basics", topics: ["Margin, border, padding", "Display types", "Positioning"] },
-  { id: 5, title: "Flexbox", topics: ["Flex containers", "Aligning & justifying", "Building a nav bar"] },
-  { id: 6, title: "CSS Grid", topics: ["Grid containers", "Rows & columns", "Building a gallery layout"] },
-  { id: 7, title: "Responsive Design & Media Queries", topics: ["Mobile-first design", "Breakpoints", "Fluid layouts"] },
-  { id: 8, title: "Forms & User Input", topics: ["Form elements", "Validation", "Accessible labels"] },
-  { id: 9, title: "Accessibility Best Practices", topics: ["Alt text", "Contrast & focus states", "Keyboard navigation"] },
-  { id: 10, title: "CSS Animations & Transitions", topics: ["Transitions", "Keyframes", "Micro-interactions"] },
-  { id: 11, title: "Design Principles & Visual Hierarchy", topics: ["Spacing & rhythm", "Color theory basics", "Hierarchy"] },
-  { id: 12, title: "Portfolio: Planning & Wireframing", topics: ["Sitemaps", "Wireframes", "Content plan"] },
-  { id: 13, title: "Portfolio: Build Week", topics: ["Building your pages", "Debugging", "Getting feedback"] },
-  { id: 14, title: "Portfolio Polish & Showcase", topics: ["Final polish", "freeCodeCamp certification", "Publishing your site"] },
+  { id: 1, title: "Intro to the Web & Setting Up", topics: ["How the web works", "VS Code", "Your first page"] },
+  { id: 2, title: "Developer Workflow", topics: ["GitHub", "Repository", "Uploading code"] },
+  { id: 3, title: "HTML Foundations", topics: ["HTML attributes", "Links", "Images"] },
+  { id: 4, title: "Structuring a Website", topics: ["div", "Classes", "nav"] },
+  { id: 5, title: "Multimedia & Tables", topics: ["Video", "tbody", "Tables"] },
+  { id: 6, title: "Forms", topics: ["Placeholder", "Labels", "Email"] },
+  { id: 7, title: "Accessibility & Good HTML", topics: ["Semantic review", "DevTools", "HTML validator"] },
+  { id: 8, title: "HTML Final Project", topics: ["Final HTML", "Requirements", "Navigation"] },
+  { id: 9, title: "CSS Basics", topics: ["External CSS", "Selectors", "Borders"] },
+  { id: 10, title: "Box Model & Layout", topics: ["Margin", "Padding", "Shadows"] },
+  { id: 11, title: "Flexbox", topics: ["justify-content", "align-items", "flex-wrap"] },
+  { id: 12, title: "Forms, Colors & Typography", topics: ["Typography", "Google Fonts", "Hover"] },
+  { id: 13, title: "Responsive Design", topics: ["Relative units", "Responsive images", "Mobile layouts"] },
+  { id: 14, title: "Advanced CSS & Final Showcase", topics: ["Final polish", "freeCodeCamp certification", "Deployment"] },
 ];
 
 const NAVY = "text-slate-900";
