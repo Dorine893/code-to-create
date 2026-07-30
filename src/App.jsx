@@ -3,7 +3,7 @@ import {
   BookOpen, Trophy, Target, LogOut, Plus, ExternalLink, CheckCircle2,
   Circle, Pencil, X, Sparkles, User, Users, ChevronRight, ChevronDown,
   Link2, Trash2, LayoutDashboard, Image as ImageIcon, Code, Copy,
-  Camera, Maximize2
+  Camera, Maximize2, GalleryHorizontalEnd, Rocket
 } from "lucide-react";
 import { auth, db } from "./firebase";
 import {
@@ -44,8 +44,13 @@ const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 async function uploadFiles(files, folder) {
   const uploaded = [];
+  const errors = [];
   for (const file of files) {
-    if (!file || file.size > MAX_FILE_BYTES) continue;
+    if (!file) continue;
+    if (file.size > MAX_FILE_BYTES) {
+      errors.push(`${file.name} is over 5MB and was skipped.`);
+      continue;
+    }
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -58,10 +63,17 @@ async function uploadFiles(files, folder) {
       const data = await res.json();
       if (data.secure_url) {
         uploaded.push({ url: data.secure_url, path: data.public_id });
+      } else {
+        console.error("Cloudinary upload failed:", data);
+        errors.push(data?.error?.message || `${file.name} failed to upload.`);
       }
     } catch (e) {
       console.error("image upload error", e);
+      errors.push(`${file.name} failed to upload (network error).`);
     }
+  }
+  if (errors.length) {
+    alert("Some images had a problem:\n\n" + errors.join("\n"));
   }
   return uploaded;
 }
@@ -284,6 +296,7 @@ export default function App() {
   const [lessonLinks, setLessonLinks] = useState({});
   const [posts, setPosts] = useState([]);
   const [gallery, setGallery] = useState([]);
+  const [lessonSubmissions, setLessonSubmissions] = useState([]);
 
   const [studentData, setStudentData] = useState({
     goal: "",
@@ -300,6 +313,7 @@ export default function App() {
   const [authBusy, setAuthBusy] = useState(false);
 
   const [view, setView] = useState("dashboard");
+  const [galleryTab, setGalleryTab] = useState("progress"); // "progress" | "portfolios"
   const [expandedLesson, setExpandedLesson] = useState(null);
   const [lessonDraft, setLessonDraft] = useState({ note: "", link: "", code: "", images: [], pendingFiles: [], pendingPreviews: [] });
   const [editingLinkFor, setEditingLinkFor] = useState(null);
@@ -320,11 +334,16 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
-        const snap = await getDoc(doc(db, "students", user.uid));
-        if (snap.exists()) {
-          const data = snap.data();
-          setStudentData(data);
-          setGoalDraft(data.goal || "");
+        try {
+          const snap = await getDoc(doc(db, "students", user.uid));
+          if (snap.exists()) {
+            const data = snap.data();
+            setStudentData(data);
+            setGoalDraft(data.goal || "");
+          }
+        } catch (e) {
+          console.error("load profile error", e);
+          alert("Couldn't load your profile: " + e.message);
         }
       } else {
         setStudentData({ goal: "", displayName: "", username: "", role: "student", photoURL: "", items: {} });
@@ -338,14 +357,24 @@ export default function App() {
   useEffect(() => {
     getDoc(doc(db, "config", "lessonLinks")).then((snap) => {
       if (snap.exists()) setLessonLinks(snap.data());
-    });
-    const unsubPosts = onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), (qs) => {
-      setPosts(qs.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    const unsubGallery = onSnapshot(query(collection(db, "gallery"), orderBy("createdAt", "desc")), (qs) => {
-      setGallery(qs.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    return () => { unsubPosts(); unsubGallery(); };
+    }).catch((e) => console.error("load lesson links error", e));
+
+    const unsubPosts = onSnapshot(
+      query(collection(db, "posts"), orderBy("createdAt", "desc")),
+      (qs) => setPosts(qs.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      (e) => console.error("posts listener error", e)
+    );
+    const unsubGallery = onSnapshot(
+      query(collection(db, "gallery"), orderBy("createdAt", "desc")),
+      (qs) => setGallery(qs.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      (e) => console.error("gallery listener error", e)
+    );
+    const unsubLessonSubs = onSnapshot(
+      query(collection(db, "lessonSubmissions"), orderBy("updatedAt", "desc")),
+      (qs) => setLessonSubmissions(qs.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      (e) => console.error("lesson submissions listener error", e)
+    );
+    return () => { unsubPosts(); unsubGallery(); unsubLessonSubs(); };
   }, []);
 
   const handleAuth = async (e) => {
@@ -381,7 +410,7 @@ export default function App() {
       if (err.code === "auth/email-already-in-use") setAuthError("That username is taken. Try logging in instead.");
       else if (err.code === "auth/weak-password") setAuthError("Password should be at least 6 characters.");
       else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") setAuthError("Username or password doesn't match.");
-      else setAuthError("Something went wrong. Try again.");
+      else setAuthError("Something went wrong: " + err.message);
     }
     setAuthBusy(false);
   };
@@ -393,11 +422,21 @@ export default function App() {
 
   const saveStudentData = async (next) => {
     setStudentData(next);
-    if (firebaseUser) await setDoc(doc(db, "students", firebaseUser.uid), next);
+    if (firebaseUser) {
+      try {
+        await setDoc(doc(db, "students", firebaseUser.uid), next);
+      } catch (e) {
+        console.error("save student data error", e);
+        alert("Couldn't save: " + e.message);
+        throw e;
+      }
+    }
   };
 
   const saveGoal = async () => {
-    await saveStudentData({ ...studentData, goal: goalDraft });
+    try {
+      await saveStudentData({ ...studentData, goal: goalDraft });
+    } catch (e) { /* already alerted */ }
   };
 
   const handleAvatarChange = async (file) => {
@@ -407,9 +446,13 @@ export default function App() {
       return;
     }
     setAvatarBusy(true);
-    const [uploaded] = await uploadFiles([file], `avatars/${firebaseUser.uid}`);
-    if (uploaded) {
-      await saveStudentData({ ...studentData, photoURL: uploaded.url });
+    try {
+      const [uploaded] = await uploadFiles([file], `avatars/${firebaseUser.uid}`);
+      if (uploaded) {
+        await saveStudentData({ ...studentData, photoURL: uploaded.url });
+      }
+    } catch (e) {
+      console.error("avatar error", e);
     }
     setAvatarBusy(false);
   };
@@ -452,34 +495,69 @@ export default function App() {
 
   const saveLessonProgress = async (id, markComplete) => {
     setSavingLesson(true);
-    const uploaded = await uploadFiles(lessonDraft.pendingFiles, `lessons/${firebaseUser.uid}/${id}`);
-    const finalImages = [...lessonDraft.images, ...uploaded];
-    const next = {
-      ...studentData,
-      items: {
-        ...studentData.items,
-        [id]: {
-          status: markComplete ? "complete" : (lessonDraft.note || lessonDraft.link || lessonDraft.code || finalImages.length ? "in_progress" : "not_started"),
+    try {
+      const uploaded = await uploadFiles(lessonDraft.pendingFiles, `lessons/${firebaseUser.uid}/${id}`);
+      const finalImages = [...lessonDraft.images, ...uploaded];
+      const hasContent = !!(lessonDraft.note || lessonDraft.link || lessonDraft.code || finalImages.length || markComplete);
+      const status = markComplete ? "complete" : (hasContent ? "in_progress" : "not_started");
+
+      const next = {
+        ...studentData,
+        items: {
+          ...studentData.items,
+          [id]: {
+            status,
+            note: lessonDraft.note || "",
+            link: lessonDraft.link || "",
+            code: lessonDraft.code || "",
+            images: finalImages,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      };
+      await saveStudentData(next);
+
+      // Mirror into the shared, class-visible feed so it shows up in
+      // Gallery -> Lesson Progress for everyone to see.
+      const subRef = doc(db, "lessonSubmissions", `${firebaseUser.uid}_${id}`);
+      if (hasContent) {
+        await setDoc(subRef, {
+          uid: firebaseUser.uid,
+          displayName: studentData.displayName || studentData.username,
+          photoURL: studentData.photoURL || "",
+          lessonId: id,
+          lessonTitle: LESSONS.find((l) => l.id === id)?.title || `Week ${id}`,
+          status,
           note: lessonDraft.note || "",
-          link: lessonDraft.link || "",
           code: lessonDraft.code || "",
+          link: lessonDraft.link || "",
           images: finalImages,
           updatedAt: new Date().toISOString(),
-        },
-      },
-    };
-    await saveStudentData(next);
+        });
+      } else {
+        await deleteDoc(subRef).catch(() => {});
+      }
+
+      setExpandedLesson(null);
+    } catch (e) {
+      console.error("save lesson progress error", e);
+      alert("Couldn't save your progress: " + e.message);
+    }
     setSavingLesson(false);
-    setExpandedLesson(null);
   };
 
   const saveLessonLink = async (id) => {
     if (!isAdmin) return;
-    const next = { ...lessonLinks, [id]: linkDraft };
-    setLessonLinks(next);
-    await setDoc(doc(db, "config", "lessonLinks"), next);
-    setEditingLinkFor(null);
-    setLinkDraft("");
+    try {
+      const next = { ...lessonLinks, [id]: linkDraft };
+      setLessonLinks(next);
+      await setDoc(doc(db, "config", "lessonLinks"), next);
+      setEditingLinkFor(null);
+      setLinkDraft("");
+    } catch (e) {
+      console.error("save lesson link error", e);
+      alert("Couldn't save the link: " + e.message);
+    }
   };
 
   const addPostFiles = (files) => {
@@ -498,26 +576,34 @@ export default function App() {
     e.preventDefault();
     if (!postDraft.title.trim() && !postDraft.content.trim() && !postDraft.code.trim() && postDraft.pendingFiles.length === 0) return;
     setPostBusy(true);
-    const images = await uploadFiles(postDraft.pendingFiles, `posts/${firebaseUser.uid}`);
-    await addDoc(collection(db, "posts"), {
-      uid: firebaseUser.uid,
-      displayName: studentData.displayName || studentData.username,
-      photoURL: studentData.photoURL || "",
-      title: postDraft.title,
-      content: postDraft.content,
-      link: postDraft.link,
-      code: postDraft.code,
-      images,
-      createdAt: new Date().toISOString(),
-    });
-    setPostDraft({ title: "", content: "", link: "", code: "", pendingFiles: [], pendingPreviews: [] });
+    try {
+      const images = await uploadFiles(postDraft.pendingFiles, `posts/${firebaseUser.uid}`);
+      await addDoc(collection(db, "posts"), {
+        uid: firebaseUser.uid,
+        displayName: studentData.displayName || studentData.username,
+        photoURL: studentData.photoURL || "",
+        title: postDraft.title,
+        content: postDraft.content,
+        link: postDraft.link,
+        code: postDraft.code,
+        images,
+        createdAt: new Date().toISOString(),
+      });
+      setPostDraft({ title: "", content: "", link: "", code: "", pendingFiles: [], pendingPreviews: [] });
+    } catch (e) {
+      console.error("submit post error", e);
+      alert("Couldn't post: " + e.message);
+    }
     setPostBusy(false);
   };
 
   const deletePost = async (post) => {
-    // Note: this removes the post from the site. The images stay stored on
-    // Cloudinary's free tier (harmless — 25GB is a lot of screenshots).
-    await deleteDoc(doc(db, "posts", post.id));
+    try {
+      await deleteDoc(doc(db, "posts", post.id));
+    } catch (e) {
+      console.error("delete post error", e);
+      alert("Couldn't delete: " + e.message);
+    }
   };
 
   const addGalleryFiles = (files) => {
@@ -536,24 +622,34 @@ export default function App() {
     e.preventDefault();
     if (!galleryDraft.title.trim() || !galleryDraft.link.trim()) return;
     setGalleryBusy(true);
-    const images = await uploadFiles(galleryDraft.pendingFiles, `gallery/${firebaseUser.uid}`);
-    await addDoc(collection(db, "gallery"), {
-      uid: firebaseUser.uid,
-      displayName: studentData.displayName || studentData.username,
-      photoURL: studentData.photoURL || "",
-      title: galleryDraft.title,
-      link: galleryDraft.link,
-      description: galleryDraft.description,
-      code: galleryDraft.code,
-      images,
-      createdAt: new Date().toISOString(),
-    });
-    setGalleryDraft({ title: "", link: "", description: "", code: "", pendingFiles: [], pendingPreviews: [] });
+    try {
+      const images = await uploadFiles(galleryDraft.pendingFiles, `gallery/${firebaseUser.uid}`);
+      await addDoc(collection(db, "gallery"), {
+        uid: firebaseUser.uid,
+        displayName: studentData.displayName || studentData.username,
+        photoURL: studentData.photoURL || "",
+        title: galleryDraft.title,
+        link: galleryDraft.link,
+        description: galleryDraft.description,
+        code: galleryDraft.code,
+        images,
+        createdAt: new Date().toISOString(),
+      });
+      setGalleryDraft({ title: "", link: "", description: "", code: "", pendingFiles: [], pendingPreviews: [] });
+    } catch (e) {
+      console.error("submit gallery error", e);
+      alert("Couldn't add to gallery: " + e.message);
+    }
     setGalleryBusy(false);
   };
 
   const deleteGalleryItem = async (item) => {
-    await deleteDoc(doc(db, "gallery", item.id));
+    try {
+      await deleteDoc(doc(db, "gallery", item.id));
+    } catch (e) {
+      console.error("delete gallery item error", e);
+      alert("Couldn't delete: " + e.message);
+    }
   };
 
   const completedCount = Object.values(studentData.items || {}).filter((i) => i.status === "complete").length;
@@ -982,70 +1078,124 @@ export default function App() {
         {view === "gallery" && (
           <div className="space-y-5">
             <div>
-              <h2 className={`text-2xl font-extrabold ${NAVY}`}>Student Gallery</h2>
-              <p className="text-slate-500 font-medium">Finished portfolio sites, shared for the whole class to see.</p>
+              <h2 className={`text-2xl font-extrabold ${NAVY}`}>Gallery</h2>
+              <p className="text-slate-500 font-medium">See what the whole class is building.</p>
             </div>
-            <Card className="p-4">
-              <form onSubmit={submitGallery} className="space-y-3">
-                <input
-                  value={galleryDraft.title}
-                  onChange={(e) => setGalleryDraft({ ...galleryDraft, title: e.target.value })}
-                  placeholder="Project title"
-                  className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 font-bold"
-                />
-                <input
-                  value={galleryDraft.link}
-                  onChange={(e) => setGalleryDraft({ ...galleryDraft, link: e.target.value })}
-                  placeholder="Live site link"
-                  className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                />
-                <textarea
-                  value={galleryDraft.description}
-                  onChange={(e) => setGalleryDraft({ ...galleryDraft, description: e.target.value })}
-                  placeholder="Tell us about it"
-                  rows={2}
-                  className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                />
-                <CodeField value={galleryDraft.code} onChange={(v) => setGalleryDraft({ ...galleryDraft, code: v })} />
-                <ImagePicker
-                  pendingPreviews={galleryDraft.pendingPreviews}
-                  onAddFiles={addGalleryFiles}
-                  onRemovePending={removeGalleryPending}
-                />
-                <button disabled={galleryBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
-                  <Plus className="w-4 h-4" /> {galleryBusy ? "Adding…" : "Add to gallery"}
-                </button>
-              </form>
-            </Card>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {gallery.length === 0 && (
-                <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">No portfolios yet — finish Lesson 14 and add yours!</p>
-              )}
-              {gallery.map((g) => (
-                <Card key={g.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(g)}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar url={g.photoURL} name={g.displayName} />
-                      <h3 className={`font-extrabold ${NAVY}`}>{g.title}</h3>
+
+            <div className="flex gap-2 bg-white rounded-xl p-1 border-2 border-slate-900 w-fit">
+              <button
+                onClick={() => setGalleryTab("progress")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition ${galleryTab === "progress" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              >
+                <GalleryHorizontalEnd className="w-4 h-4" /> Lesson Progress
+              </button>
+              <button
+                onClick={() => setGalleryTab("portfolios")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition ${galleryTab === "portfolios" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              >
+                <Rocket className="w-4 h-4" /> Finished Portfolios
+              </button>
+            </div>
+
+            {galleryTab === "progress" && (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {lessonSubmissions.length === 0 && (
+                  <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">
+                    No lesson progress shared yet — it'll show up here as soon as someone saves a lesson.
+                  </p>
+                )}
+                {lessonSubmissions.map((s) => (
+                  <Card
+                    key={s.id}
+                    className="p-4 cursor-pointer hover:border-amber-500 transition"
+                    onClick={() => setModalItem({ ...s, title: s.lessonTitle, content: s.note })}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar url={s.photoURL} name={s.displayName} />
+                        <div>
+                          <div className="text-xs font-bold text-slate-400 uppercase tracking-wide">{s.displayName}</div>
+                          <h3 className={`font-extrabold ${NAVY}`}>Week {s.lessonId}: {s.lessonTitle}</h3>
+                        </div>
+                      </div>
+                      <Maximize2 className="w-3.5 h-3.5 text-slate-300 shrink-0" />
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
-                      {g.uid === firebaseUser.uid && (
-                        <button onClick={(e) => { e.stopPropagation(); deleteGalleryItem(g); }} className="text-slate-300 hover:text-red-600">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                    <div className="mt-2">
+                      {s.status === "complete" ? <Badge tone="green">Complete</Badge> : <Badge tone="amber">In progress</Badge>}
                     </div>
-                  </div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-0.5 ml-[42px]">by {g.displayName}</p>
-                  {g.description && <p className="text-slate-700 text-sm mt-2 line-clamp-2">{g.description}</p>}
-                  <ThumbRow images={g.images} />
-                  <a href={g.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
-                    <ExternalLink className="w-3.5 h-3.5" /> Visit site
-                  </a>
+                    {s.note && <p className="text-slate-700 text-sm mt-2 line-clamp-2">{s.note}</p>}
+                    <ThumbRow images={s.images} />
+                    {s.code && <Badge tone="slate"><Code className="w-3 h-3" /> Has code</Badge>}
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {galleryTab === "portfolios" && (
+              <div className="space-y-5">
+                <Card className="p-4">
+                  <form onSubmit={submitGallery} className="space-y-3">
+                    <input
+                      value={galleryDraft.title}
+                      onChange={(e) => setGalleryDraft({ ...galleryDraft, title: e.target.value })}
+                      placeholder="Project title"
+                      className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 font-bold"
+                    />
+                    <input
+                      value={galleryDraft.link}
+                      onChange={(e) => setGalleryDraft({ ...galleryDraft, link: e.target.value })}
+                      placeholder="Live site link"
+                      className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                    />
+                    <textarea
+                      value={galleryDraft.description}
+                      onChange={(e) => setGalleryDraft({ ...galleryDraft, description: e.target.value })}
+                      placeholder="Tell us about it"
+                      rows={2}
+                      className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                    />
+                    <CodeField value={galleryDraft.code} onChange={(v) => setGalleryDraft({ ...galleryDraft, code: v })} />
+                    <ImagePicker
+                      pendingPreviews={galleryDraft.pendingPreviews}
+                      onAddFiles={addGalleryFiles}
+                      onRemovePending={removeGalleryPending}
+                    />
+                    <button disabled={galleryBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
+                      <Plus className="w-4 h-4" /> {galleryBusy ? "Adding…" : "Add to gallery"}
+                    </button>
+                  </form>
                 </Card>
-              ))}
-            </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {gallery.length === 0 && (
+                    <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">No portfolios yet — finish Lesson 14 and add yours!</p>
+                  )}
+                  {gallery.map((g) => (
+                    <Card key={g.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(g)}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar url={g.photoURL} name={g.displayName} />
+                          <h3 className={`font-extrabold ${NAVY}`}>{g.title}</h3>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
+                          {g.uid === firebaseUser.uid && (
+                            <button onClick={(e) => { e.stopPropagation(); deleteGalleryItem(g); }} className="text-slate-300 hover:text-red-600">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-0.5 ml-[42px]">by {g.displayName}</p>
+                      {g.description && <p className="text-slate-700 text-sm mt-2 line-clamp-2">{g.description}</p>}
+                      <ThumbRow images={g.images} />
+                      <a href={g.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
+                        <ExternalLink className="w-3.5 h-3.5" /> Visit site
+                      </a>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1117,16 +1267,16 @@ export default function App() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
-                  📚 Manage Lessons
+                   Manage Lessons
                 </button>
                 <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
-                  📢 Announcements
+                   Announcements
                 </button>
                 <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
-                  👩‍🎓 Students
+                  👩 Students
                 </button>
                 <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
-                  🖼 Gallery
+                   Gallery
                 </button>
               </div>
             </Card>
