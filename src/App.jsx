@@ -1267,16 +1267,16 @@ export default function App() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
-                   Manage Lessons
+                  📚 Manage Lessons
                 </button>
                 <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
-                   Announcements
+                  📢 Announcements
                 </button>
                 <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
-                  👩 Students
+                  👩‍🎓 Students
                 </button>
                 <button className="border-2 border-slate-900 rounded-xl p-4 text-left hover:bg-slate-100">
-                   Gallery
+                  🖼 Gallery
                 </button>
               </div>
             </Card>
