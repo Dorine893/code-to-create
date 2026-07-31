@@ -33,49 +33,68 @@ const LESSONS = [
 ];
 
 const NAVY = "text-slate-900";
-const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per image
+const MAX_ORIGINAL_FILE_BYTES = 12 * 1024 * 1024; // guard against absurd originals
 // Firebase Auth needs an email. We derive one from the username so students
 // can log in with just a username + password.
 const usernameToEmail = (username) => `${username.trim().toLowerCase()}@codetocreate.local`;
 
-// Cloudinary (free, no credit card) handles all image uploads/hosting.
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+// Images are compressed in the browser and stored directly inside Firestore
+// documents as base64 data URLs — no third-party image service needed.
+// Firestore caps a document at 1MB total, so we keep each image small.
+function resizeImageToDataURL(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else if (height >= width && height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("Couldn't read that image."));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error("Couldn't read that file."));
+    reader.readAsDataURL(file);
+  });
+}
 
-async function uploadFiles(files, folder) {
-  const uploaded = [];
+async function processImages(files, { maxDim = 900, quality = 0.65, maxBytes = 700 * 1024 } = {}) {
+  const results = [];
   const errors = [];
   for (const file of files) {
     if (!file) continue;
-    if (file.size > MAX_FILE_BYTES) {
-      errors.push(`${file.name} is over 5MB and was skipped.`);
+    if (file.size > MAX_ORIGINAL_FILE_BYTES) {
+      errors.push(`${file.name} is too large to process.`);
       continue;
     }
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-      formData.append("folder", folder);
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData }
-      );
-      const data = await res.json();
-      if (data.secure_url) {
-        uploaded.push({ url: data.secure_url, path: data.public_id });
-      } else {
-        console.error("Cloudinary upload failed:", data);
-        errors.push(data?.error?.message || `${file.name} failed to upload.`);
+      let dataUrl = await resizeImageToDataURL(file, maxDim, quality);
+      // If it's still too big for a comfortable Firestore doc, compress harder.
+      if (dataUrl.length * 0.75 > maxBytes) {
+        dataUrl = await resizeImageToDataURL(file, Math.round(maxDim * 0.65), 0.45);
       }
+      results.push({ url: dataUrl, path: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` });
     } catch (e) {
-      console.error("image upload error", e);
-      errors.push(`${file.name} failed to upload (network error).`);
+      console.error("image processing error", e);
+      errors.push(`${file.name} couldn't be processed.`);
     }
   }
   if (errors.length) {
     alert("Some images had a problem:\n\n" + errors.join("\n"));
   }
-  return uploaded;
+  return results;
 }
 
 function Card({ children, className = "" }) {
@@ -157,7 +176,7 @@ function ImagePicker({ existingImages = [], onRemoveExisting, pendingPreviews, o
           />
         </label>
       </div>
-      <p className="text-[11px] text-slate-400 mt-1">Up to 5MB per image.</p>
+      <p className="text-[11px] text-slate-400 mt-1">Photos are auto-compressed. Keep it to a few per submission.</p>
     </div>
   );
 }
@@ -441,15 +460,11 @@ export default function App() {
 
   const handleAvatarChange = async (file) => {
     if (!file || !firebaseUser) return;
-    if (file.size > MAX_FILE_BYTES) {
-      alert("Please choose an image under 5MB.");
-      return;
-    }
     setAvatarBusy(true);
     try {
-      const [uploaded] = await uploadFiles([file], `avatars/${firebaseUser.uid}`);
-      if (uploaded) {
-        await saveStudentData({ ...studentData, photoURL: uploaded.url });
+      const [processed] = await processImages([file], { maxDim: 400, quality: 0.7, maxBytes: 250 * 1024 });
+      if (processed) {
+        await saveStudentData({ ...studentData, photoURL: processed.url });
       }
     } catch (e) {
       console.error("avatar error", e);
@@ -496,8 +511,8 @@ export default function App() {
   const saveLessonProgress = async (id, markComplete) => {
     setSavingLesson(true);
     try {
-      const uploaded = await uploadFiles(lessonDraft.pendingFiles, `lessons/${firebaseUser.uid}/${id}`);
-      const finalImages = [...lessonDraft.images, ...uploaded];
+      const processed = await processImages(lessonDraft.pendingFiles);
+      const finalImages = [...lessonDraft.images, ...processed];
       const hasContent = !!(lessonDraft.note || lessonDraft.link || lessonDraft.code || finalImages.length || markComplete);
       const status = markComplete ? "complete" : (hasContent ? "in_progress" : "not_started");
 
@@ -577,7 +592,7 @@ export default function App() {
     if (!postDraft.title.trim() && !postDraft.content.trim() && !postDraft.code.trim() && postDraft.pendingFiles.length === 0) return;
     setPostBusy(true);
     try {
-      const images = await uploadFiles(postDraft.pendingFiles, `posts/${firebaseUser.uid}`);
+      const images = await processImages(postDraft.pendingFiles);
       await addDoc(collection(db, "posts"), {
         uid: firebaseUser.uid,
         displayName: studentData.displayName || studentData.username,
@@ -623,7 +638,7 @@ export default function App() {
     if (!galleryDraft.title.trim() || !galleryDraft.link.trim()) return;
     setGalleryBusy(true);
     try {
-      const images = await uploadFiles(galleryDraft.pendingFiles, `gallery/${firebaseUser.uid}`);
+      const images = await processImages(galleryDraft.pendingFiles);
       await addDoc(collection(db, "gallery"), {
         uid: firebaseUser.uid,
         displayName: studentData.displayName || studentData.username,
@@ -1217,7 +1232,7 @@ export default function App() {
                       onChange={(e) => handleAvatarChange(e.target.files?.[0])}
                     />
                   </label>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Optional — under 5MB.</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Optional — auto-compressed.</p>
                 </div>
               </div>
 
