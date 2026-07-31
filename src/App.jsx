@@ -3,7 +3,7 @@ import {
   BookOpen, Trophy, Target, LogOut, Plus, ExternalLink, CheckCircle2,
   Circle, Pencil, X, Sparkles, User, Users, ChevronRight, ChevronDown,
   Link2, Trash2, LayoutDashboard, Image as ImageIcon, Code, Copy,
-  Camera, Maximize2, GalleryHorizontalEnd, Rocket
+  Camera, Maximize2, GalleryHorizontalEnd, Rocket, ArrowLeft, GraduationCap
 } from "lucide-react";
 import { auth, db } from "./firebase";
 import {
@@ -176,7 +176,6 @@ function ImagePicker({ existingImages = [], onRemoveExisting, pendingPreviews, o
           />
         </label>
       </div>
-      <p className="text-[11px] text-slate-400 mt-1">Photos are auto-compressed. Keep it to a few per submission.</p>
     </div>
   );
 }
@@ -197,18 +196,27 @@ function CodeField({ value, onChange, label = "Paste your code (optional)" }) {
   );
 }
 
-function ThumbRow({ images }) {
-  if (!images || images.length === 0) return null;
-  const shown = images.slice(0, 3);
-  const extra = images.length - shown.length;
+// Side-by-side preview shown on feed cards: bigger photo(s) on the left,
+// a truncated code snippet on the right. Click the card to see it in full.
+function PreviewRow({ images, code }) {
+  if ((!images || images.length === 0) && !code) return null;
   return (
-    <div className="flex gap-1.5 mt-2">
-      {shown.map((img, i) => (
-        <img key={img.path || i} src={img.url} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-200" />
-      ))}
-      {extra > 0 && (
-        <div className="w-14 h-14 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
-          +{extra}
+    <div className="flex gap-3 mt-3">
+      {images && images.length > 0 && (
+        <div className="flex gap-1.5 shrink-0">
+          {images.slice(0, 2).map((img, i) => (
+            <img key={img.path || i} src={img.url} alt="" className="w-24 h-24 object-cover rounded-lg border border-slate-200" />
+          ))}
+          {images.length > 2 && (
+            <div className="w-24 h-24 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
+              +{images.length - 2}
+            </div>
+          )}
+        </div>
+      )}
+      {code && (
+        <div className="flex-1 min-w-0 bg-slate-900 rounded-lg p-2.5 overflow-hidden">
+          <pre className="text-slate-100 text-[10px] leading-snug font-mono whitespace-pre-wrap line-clamp-4">{code}</pre>
         </div>
       )}
     </div>
@@ -309,6 +317,10 @@ function ProgressRing({ completed, total = 14 }) {
   );
 }
 
+function completedCountFor(studentItems) {
+  return Object.values(studentItems || {}).filter((i) => i.status === "complete").length;
+}
+
 export default function App() {
   const [booting, setBooting] = useState(true);
   const [firebaseUser, setFirebaseUser] = useState(null);
@@ -316,6 +328,7 @@ export default function App() {
   const [posts, setPosts] = useState([]);
   const [gallery, setGallery] = useState([]);
   const [lessonSubmissions, setLessonSubmissions] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
 
   const [studentData, setStudentData] = useState({
     goal: "",
@@ -333,6 +346,7 @@ export default function App() {
 
   const [view, setView] = useState("dashboard");
   const [galleryTab, setGalleryTab] = useState("progress"); // "progress" | "portfolios"
+  const [classroomSelectedUid, setClassroomSelectedUid] = useState(null);
   const [expandedLesson, setExpandedLesson] = useState(null);
   const [lessonDraft, setLessonDraft] = useState({ note: "", link: "", code: "", images: [], pendingFiles: [], pendingPreviews: [] });
   const [editingLinkFor, setEditingLinkFor] = useState(null);
@@ -393,7 +407,12 @@ export default function App() {
       (qs) => setLessonSubmissions(qs.docs.map((d) => ({ id: d.id, ...d.data() }))),
       (e) => console.error("lesson submissions listener error", e)
     );
-    return () => { unsubPosts(); unsubGallery(); unsubLessonSubs(); };
+    const unsubStudents = onSnapshot(
+      collection(db, "students"),
+      (qs) => setAllStudents(qs.docs.map((d) => ({ uid: d.id, ...d.data() }))),
+      (e) => console.error("students listener error", e)
+    );
+    return () => { unsubPosts(); unsubGallery(); unsubLessonSubs(); unsubStudents(); };
   }, []);
 
   const handleAuth = async (e) => {
@@ -533,7 +552,7 @@ export default function App() {
       await saveStudentData(next);
 
       // Mirror into the shared, class-visible feed so it shows up in
-      // Gallery -> Lesson Progress for everyone to see.
+      // Gallery -> Lesson Progress and on the Classroom page.
       const subRef = doc(db, "lessonSubmissions", `${firebaseUser.uid}_${id}`);
       if (hasContent) {
         await setDoc(subRef, {
@@ -667,7 +686,7 @@ export default function App() {
     }
   };
 
-  const completedCount = Object.values(studentData.items || {}).filter((i) => i.status === "complete").length;
+  const completedCount = completedCountFor(studentData.items);
 
   if (booting) {
     return (
@@ -748,7 +767,7 @@ export default function App() {
 
   const NavButton = ({ id, icon: Icon, label }) => (
     <button
-      onClick={() => setView(id)}
+      onClick={() => { setView(id); setClassroomSelectedUid(null); }}
       className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition whitespace-nowrap ${
         view === id ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-200"
       }`}
@@ -757,6 +776,13 @@ export default function App() {
       {label}
     </button>
   );
+
+  const selectedStudent = allStudents.find((s) => s.uid === classroomSelectedUid);
+  const selectedStudentLessonSubs = classroomSelectedUid
+    ? lessonSubmissions.filter((s) => s.uid === classroomSelectedUid).sort((a, b) => a.lessonId - b.lessonId)
+    : [];
+  const selectedStudentPosts = classroomSelectedUid ? posts.filter((p) => p.uid === classroomSelectedUid) : [];
+  const selectedStudentGallery = classroomSelectedUid ? gallery.filter((g) => g.uid === classroomSelectedUid) : [];
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -775,6 +801,7 @@ export default function App() {
             <NavButton id="lessons" icon={BookOpen} label="Lessons" />
             <NavButton id="creator" icon={Sparkles} label="Creator Space" />
             <NavButton id="gallery" icon={ImageIcon} label="Gallery" />
+            <NavButton id="classroom" icon={GraduationCap} label="Classroom" />
             <NavButton id="profile" icon={User} label="Profile" />
             {isAdmin && (
               <NavButton id="admin" icon={User} label="Admin" />
@@ -897,7 +924,6 @@ export default function App() {
                         {item.status === "complete" && <Badge tone="green">Complete</Badge>}
                       </div>
                       <h3 className={`font-bold ${NAVY} truncate`}>{lesson.title}</h3>
-                      <ThumbRow images={item.images} />
                     </div>
                     {isOpen ? <ChevronDown className="w-5 h-5 text-slate-400 shrink-0" /> : <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" />}
                   </button>
@@ -1075,15 +1101,12 @@ export default function App() {
                     </div>
                   </div>
                   {p.content && <p className="text-slate-700 text-sm mt-2 whitespace-pre-wrap line-clamp-3">{p.content}</p>}
-                  <ThumbRow images={p.images} />
-                  <div className="flex items-center gap-3 mt-2">
-                    {p.code && <Badge tone="slate"><Code className="w-3 h-3" /> Has code</Badge>}
-                    {p.link && (
-                      <a href={p.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline">
-                        <ExternalLink className="w-3.5 h-3.5" /> View link
-                      </a>
-                    )}
-                  </div>
+                  <PreviewRow images={p.images} code={p.code} />
+                  {p.link && (
+                    <a href={p.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
+                      <ExternalLink className="w-3.5 h-3.5" /> View link
+                    </a>
+                  )}
                 </Card>
               ))}
             </div>
@@ -1139,8 +1162,7 @@ export default function App() {
                       {s.status === "complete" ? <Badge tone="green">Complete</Badge> : <Badge tone="amber">In progress</Badge>}
                     </div>
                     {s.note && <p className="text-slate-700 text-sm mt-2 line-clamp-2">{s.note}</p>}
-                    <ThumbRow images={s.images} />
-                    {s.code && <Badge tone="slate"><Code className="w-3 h-3" /> Has code</Badge>}
+                    <PreviewRow images={s.images} code={s.code} />
                   </Card>
                 ))}
               </div>
@@ -1202,7 +1224,7 @@ export default function App() {
                       </div>
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-0.5 ml-[42px]">by {g.displayName}</p>
                       {g.description && <p className="text-slate-700 text-sm mt-2 line-clamp-2">{g.description}</p>}
-                      <ThumbRow images={g.images} />
+                      <PreviewRow images={g.images} code={g.code} />
                       <a href={g.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
                         <ExternalLink className="w-3.5 h-3.5" /> Visit site
                       </a>
@@ -1211,6 +1233,142 @@ export default function App() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {view === "classroom" && !selectedStudent && (
+          <div className="space-y-5">
+            <div>
+              <h2 className={`text-2xl font-extrabold ${NAVY}`}>Classroom</h2>
+              <p className="text-slate-500 font-medium">Everyone in the program. Click a profile to see their work.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {allStudents.length === 0 && (
+                <p className="text-center text-slate-400 font-medium py-8 sm:col-span-3">No students yet.</p>
+              )}
+              {allStudents.map((s) => {
+                const count = completedCountFor(s.items);
+                return (
+                  <Card
+                    key={s.uid}
+                    className="p-4 cursor-pointer hover:border-amber-500 transition text-center"
+                    onClick={() => setClassroomSelectedUid(s.uid)}
+                  >
+                    <div className="flex justify-center">
+                      <Avatar url={s.photoURL} name={s.displayName || s.username} size={16} />
+                    </div>
+                    <h3 className={`font-extrabold ${NAVY} mt-2`}>{s.displayName || s.username}</h3>
+                    {s.goal && <p className="text-slate-500 text-xs mt-1 line-clamp-2">{s.goal}</p>}
+                    <div className="mt-2 flex justify-center gap-1.5 flex-wrap">
+                      {count === 14 ? (
+                        <Badge tone="green">🎓 Certified</Badge>
+                      ) : (
+                        <Badge tone="amber">{count}/14 lessons</Badge>
+                      )}
+                      {s.role === "admin" && <Badge tone="slate">Admin</Badge>}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {view === "classroom" && selectedStudent && (
+          <div className="space-y-5">
+            <button
+              onClick={() => setClassroomSelectedUid(null)}
+              className="flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-900"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Classroom
+            </button>
+
+            <Card className="p-5 flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+              <Avatar url={selectedStudent.photoURL} name={selectedStudent.displayName || selectedStudent.username} size={24} />
+              <div className="flex-1">
+                <h2 className={`text-2xl font-extrabold ${NAVY}`}>{selectedStudent.displayName || selectedStudent.username}</h2>
+                {selectedStudent.goal && <p className="text-slate-600 font-medium mt-1">🎯 {selectedStudent.goal}</p>}
+                <div className="mt-2 flex justify-center sm:justify-start gap-1.5 flex-wrap">
+                  {completedCountFor(selectedStudent.items) === 14 ? (
+                    <Badge tone="green">🎓 Certified — 14/14</Badge>
+                  ) : (
+                    <Badge tone="amber">{completedCountFor(selectedStudent.items)}/14 lessons complete</Badge>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <div>
+              <h3 className={`font-extrabold text-lg ${NAVY} mb-2 flex items-center gap-2`}>
+                <GalleryHorizontalEnd className="w-5 h-5 text-amber-600" /> Lesson Progress
+              </h3>
+              {selectedStudentLessonSubs.length === 0 ? (
+                <p className="text-slate-400 text-sm font-medium">No lessons shared yet.</p>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {selectedStudentLessonSubs.map((s) => (
+                    <Card
+                      key={s.id}
+                      className="p-4 cursor-pointer hover:border-amber-500 transition"
+                      onClick={() => setModalItem({ ...s, title: s.lessonTitle, content: s.note })}
+                    >
+                      <div className="flex items-center justify-between">
+                        <h4 className={`font-bold ${NAVY}`}>Week {s.lessonId}: {s.lessonTitle}</h4>
+                        <Maximize2 className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                      </div>
+                      <div className="mt-1">
+                        {s.status === "complete" ? <Badge tone="green">Complete</Badge> : <Badge tone="amber">In progress</Badge>}
+                      </div>
+                      <PreviewRow images={s.images} code={s.code} />
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className={`font-extrabold text-lg ${NAVY} mb-2 flex items-center gap-2`}>
+                <Sparkles className="w-5 h-5 text-amber-600" /> Creator Space Posts
+              </h3>
+              {selectedStudentPosts.length === 0 ? (
+                <p className="text-slate-400 text-sm font-medium">No posts yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {selectedStudentPosts.map((p) => (
+                    <Card key={p.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(p)}>
+                      <div className="flex items-center justify-between">
+                        {p.title && <h4 className={`font-bold ${NAVY}`}>{p.title}</h4>}
+                        <Maximize2 className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                      </div>
+                      {p.content && <p className="text-slate-700 text-sm mt-1 line-clamp-2">{p.content}</p>}
+                      <PreviewRow images={p.images} code={p.code} />
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className={`font-extrabold text-lg ${NAVY} mb-2 flex items-center gap-2`}>
+                <Rocket className="w-5 h-5 text-amber-600" /> Finished Portfolios
+              </h3>
+              {selectedStudentGallery.length === 0 ? (
+                <p className="text-slate-400 text-sm font-medium">No portfolio submitted yet.</p>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {selectedStudentGallery.map((g) => (
+                    <Card key={g.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(g)}>
+                      <div className="flex items-center justify-between">
+                        <h4 className={`font-bold ${NAVY}`}>{g.title}</h4>
+                        <Maximize2 className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                      </div>
+                      {g.description && <p className="text-slate-700 text-sm mt-1 line-clamp-2">{g.description}</p>}
+                      <PreviewRow images={g.images} code={g.code} />
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1232,7 +1390,6 @@ export default function App() {
                       onChange={(e) => handleAvatarChange(e.target.files?.[0])}
                     />
                   </label>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Optional — auto-compressed.</p>
                 </div>
               </div>
 
