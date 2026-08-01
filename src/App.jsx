@@ -97,9 +97,9 @@ async function processImages(files, { maxDim = 900, quality = 0.65, maxBytes = 7
   return results;
 }
 
-function Card({ children, className = "" }) {
+function Card({ children, className = "", ...rest }) {
   return (
-    <div className={`bg-white border-2 border-slate-900 rounded-2xl ${className}`}>
+    <div className={`bg-white border-2 border-slate-900 rounded-2xl ${className}`} {...rest}>
       {children}
     </div>
   );
