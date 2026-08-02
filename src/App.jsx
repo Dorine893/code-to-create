@@ -3,7 +3,8 @@ import {
   BookOpen, Trophy, Target, LogOut, Plus, ExternalLink, CheckCircle2,
   Circle, Pencil, X, Sparkles, User, Users, ChevronRight, ChevronDown,
   Link2, Trash2, LayoutDashboard, Image as ImageIcon, Code, Copy,
-  Camera, Maximize2, GalleryHorizontalEnd, Rocket, ArrowLeft, GraduationCap
+  Camera, Maximize2, GalleryHorizontalEnd, Rocket, ArrowLeft, GraduationCap,
+  Lock, Home as HomeIcon, LogIn
 } from "lucide-react";
 import { auth, db } from "./firebase";
 import {
@@ -30,6 +31,32 @@ const LESSONS = [
   { id: 12, title: "Forms, Colors & Typography", topics: ["Typography", "Google Fonts", "Hover"] },
   { id: 13, title: "Responsive Design", topics: ["Relative units", "Responsive images", "Mobile layouts"] },
   { id: 14, title: "Advanced CSS & Final Showcase", topics: ["Final polish", "freeCodeCamp certification", "Deployment"] },
+];
+
+// ---- Public homepage content — edit these directly with your real info ----
+// For photos: drop image files into the /public folder of this project
+// (e.g. /public/team/jane.jpg) and reference them below as "/team/jane.jpg".
+// These are your own site's static assets, so there's no size limit to
+// worry about and nothing needs to be uploaded through the app itself.
+const ORG_NAME = "EngineOrg";
+const ORG_TAGLINE = "Building pathways into tech for the next generation.";
+const ORG_MISSION =
+  "Write your mission statement here. What does EngineOrg exist to do, who does it serve, and why does that work matter? A few sentences is plenty — this shows up front and center on your homepage.";
+
+const TEAM_MEMBERS = [
+  { name: "Dorine", role: "Founder & Executive Director", bio: "A sentence or two about your background and why you started EngineOrg.", photo: "/team/placeholder.jpg" },
+  { name: "Team Member Name", role: "Program Director", bio: "A sentence or two about their role and what they focus on.", photo: "/team/placeholder.jpg" },
+  { name: "Team Member Name", role: "Volunteer Coordinator", bio: "A sentence or two about their role.", photo: "/team/placeholder.jpg" },
+];
+
+const PARTNERS = [
+  { name: "Partner Organization", logo: "/partners/placeholder.png", link: "https://example.com" },
+  { name: "Partner Organization", logo: "/partners/placeholder.png", link: "https://example.com" },
+  { name: "Partner Organization", logo: "/partners/placeholder.png", link: "https://example.com" },
+];
+
+const PROGRAMS = [
+  { name: "Code-to-Create", description: "A 14-week beginner web development program." },
 ];
 
 const NAVY = "text-slate-900";
@@ -81,7 +108,6 @@ async function processImages(files, { maxDim = 900, quality = 0.65, maxBytes = 7
     }
     try {
       let dataUrl = await resizeImageToDataURL(file, maxDim, quality);
-      // If it's still too big for a comfortable Firestore doc, compress harder.
       if (dataUrl.length * 0.75 > maxBytes) {
         dataUrl = await resizeImageToDataURL(file, Math.round(maxDim * 0.65), 0.45);
       }
@@ -128,6 +154,18 @@ function Avatar({ url, name, size = 8 }) {
     <div className={`${sizeClass} rounded-full bg-slate-900 text-white flex items-center justify-center font-extrabold shrink-0`}>
       {initial}
     </div>
+  );
+}
+
+function LockedPrompt({ message, onLoginClick }) {
+  return (
+    <Card className="p-6 text-center">
+      <Lock className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+      <p className="text-slate-600 font-medium">{message}</p>
+      <button onClick={onLoginClick} className="mt-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-4 py-2 rounded-lg">
+        Log In / Create Free Account
+      </button>
+    </Card>
   );
 }
 
@@ -196,8 +234,6 @@ function CodeField({ value, onChange, label = "Paste your code (optional)" }) {
   );
 }
 
-// Side-by-side preview shown on feed cards: bigger photo(s) on the left,
-// a truncated code snippet on the right. Click the card to see it in full.
 function PreviewRow({ images, code }) {
   if ((!images || images.length === 0) && !code) return null;
   return (
@@ -321,6 +357,90 @@ function completedCountFor(studentItems) {
   return Object.values(studentItems || {}).filter((i) => i.status === "complete").length;
 }
 
+// Marketing content — embedded as the "home" view inside the main app shell,
+// shared by visitors and logged-in users alike.
+function HomeContent({ loggedIn, onCtaClick }) {
+  return (
+    <div className="space-y-10">
+      <section className="text-center pt-6 pb-2">
+        <h1 className={`text-4xl sm:text-5xl font-extrabold ${NAVY} tracking-tight`}>{ORG_NAME}</h1>
+        <p className="text-slate-500 font-medium text-lg mt-3 max-w-xl mx-auto">{ORG_TAGLINE}</p>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+          <a href="#programs" className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-lg">
+            See Our Programs
+          </a>
+          <a href="#team" className="border-2 border-slate-900 text-slate-900 font-bold px-5 py-2.5 rounded-lg hover:bg-white">
+            Meet the Team
+          </a>
+        </div>
+      </section>
+
+      <section id="mission" className="max-w-3xl mx-auto">
+        <Card className="p-8 text-center">
+          <h2 className="text-xs font-extrabold uppercase tracking-widest text-amber-700 mb-3">Our Mission</h2>
+          <p className={`text-lg font-medium ${NAVY} leading-relaxed`}>{ORG_MISSION}</p>
+        </Card>
+      </section>
+
+      <section id="programs">
+        <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-6`}>Our Programs</h2>
+        <div className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          {PROGRAMS.map((p) => (
+            <Card key={p.name} className="p-6 text-center">
+              <h3 className={`font-extrabold text-lg ${NAVY}`}>{p.name}</h3>
+              <p className="text-slate-500 text-sm mt-1">{p.description}</p>
+              <button onClick={onCtaClick} className="mt-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-4 py-2 rounded-lg">
+                {loggedIn ? "Go to Dashboard" : "Student Login"}
+              </button>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section id="team">
+        <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-6`}>Founders & Team</h2>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {TEAM_MEMBERS.map((m, i) => (
+            <Card key={i} className="p-5 text-center">
+              <img
+                src={m.photo}
+                alt={m.name}
+                className="w-20 h-20 rounded-full object-cover border-2 border-slate-900 mx-auto"
+                onError={(e) => { e.target.style.display = "none"; }}
+              />
+              <h3 className={`font-extrabold ${NAVY} mt-3`}>{m.name}</h3>
+              <p className="text-amber-700 text-xs font-bold uppercase tracking-wide mt-0.5">{m.role}</p>
+              <p className="text-slate-500 text-sm mt-2">{m.bio}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section id="partners">
+        <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-6`}>Our Partners</h2>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {PARTNERS.map((p, i) => (
+            <a key={i} href={p.link} target="_blank" rel="noreferrer">
+              <Card className="p-5 text-center hover:border-amber-500 transition h-full">
+                <img
+                  src={p.logo}
+                  alt={p.name}
+                  className="w-16 h-16 object-contain mx-auto"
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+                <h3 className={`font-extrabold ${NAVY} mt-3`}>{p.name}</h3>
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 mt-1">
+                  Visit site <ExternalLink className="w-3 h-3" />
+                </span>
+              </Card>
+            </a>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function App() {
   const [booting, setBooting] = useState(true);
   const [firebaseUser, setFirebaseUser] = useState(null);
@@ -344,7 +464,7 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
 
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState("home");
   const [galleryTab, setGalleryTab] = useState("progress"); // "progress" | "portfolios"
   const [classroomSelectedUid, setClassroomSelectedUid] = useState(null);
   const [expandedLesson, setExpandedLesson] = useState(null);
@@ -362,6 +482,8 @@ export default function App() {
   const [postBusy, setPostBusy] = useState(false);
   const [galleryBusy, setGalleryBusy] = useState(false);
 
+  const goToAuth = () => setView("auth");
+
   // Auth state + student profile
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -376,17 +498,18 @@ export default function App() {
           }
         } catch (e) {
           console.error("load profile error", e);
-          alert("Couldn't load your profile: " + e.message);
         }
+        setView("dashboard");
       } else {
         setStudentData({ goal: "", displayName: "", username: "", role: "student", photoURL: "", items: {} });
+        setView("home");
       }
       setBooting(false);
     });
     return unsub;
   }, []);
 
-  // Shared config + live feeds
+  // Shared, publicly-readable feeds — load regardless of login state.
   useEffect(() => {
     getDoc(doc(db, "config", "lessonLinks")).then((snap) => {
       if (snap.exists()) setLessonLinks(snap.data());
@@ -455,7 +578,7 @@ export default function App() {
 
   const logout = async () => {
     await signOut(auth);
-    setView("dashboard");
+    setView("home");
   };
 
   const saveStudentData = async (next) => {
@@ -528,6 +651,7 @@ export default function App() {
   };
 
   const saveLessonProgress = async (id, markComplete) => {
+    if (!firebaseUser) { goToAuth(); return; }
     setSavingLesson(true);
     try {
       const processed = await processImages(lessonDraft.pendingFiles);
@@ -551,8 +675,6 @@ export default function App() {
       };
       await saveStudentData(next);
 
-      // Mirror into the shared, class-visible feed so it shows up in
-      // Gallery -> Lesson Progress and on the Classroom page.
       const subRef = doc(db, "lessonSubmissions", `${firebaseUser.uid}_${id}`);
       if (hasContent) {
         await setDoc(subRef, {
@@ -608,6 +730,7 @@ export default function App() {
 
   const submitPost = async (e) => {
     e.preventDefault();
+    if (!firebaseUser) { goToAuth(); return; }
     if (!postDraft.title.trim() && !postDraft.content.trim() && !postDraft.code.trim() && postDraft.pendingFiles.length === 0) return;
     setPostBusy(true);
     try {
@@ -654,6 +777,7 @@ export default function App() {
 
   const submitGallery = async (e) => {
     e.preventDefault();
+    if (!firebaseUser) { goToAuth(); return; }
     if (!galleryDraft.title.trim() || !galleryDraft.link.trim()) return;
     setGalleryBusy(true);
     try {
@@ -699,72 +823,6 @@ export default function App() {
     );
   }
 
-  if (!firebaseUser) {
-    return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-6">
-            <h1 className={`text-4xl font-extrabold ${NAVY} tracking-tight`}>Code-to-Create</h1>
-            <p className="text-slate-500 font-medium mt-1">Your web development learning platform</p>
-          </div>
-          <Card className="p-6">
-            <div className="flex gap-2 mb-5 bg-slate-100 rounded-xl p-1 border border-slate-200">
-              <button
-                onClick={() => { setAuthMode("login"); setAuthError(""); }}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${authMode === "login" ? "bg-white text-slate-900 shadow-sm border border-slate-900" : "text-slate-500"}`}
-              >
-                Log in
-              </button>
-              <button
-                onClick={() => { setAuthMode("signup"); setAuthError(""); }}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${authMode === "signup" ? "bg-white text-slate-900 shadow-sm border border-slate-900" : "text-slate-500"}`}
-              >
-                Create account
-              </button>
-            </div>
-            <form onSubmit={handleAuth} className="space-y-3">
-              {authMode === "signup" && (
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Display name</label>
-                  <input
-                    value={authForm.displayName}
-                    onChange={(e) => setAuthForm({ ...authForm, displayName: e.target.value })}
-                    className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2"
-                    placeholder="e.g. Amina K."
-                  />
-                </div>
-              )}
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Username</label>
-                <input
-                  value={authForm.username}
-                  onChange={(e) => setAuthForm({ ...authForm, username: e.target.value })}
-                  className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2"
-                  placeholder="username"
-                  autoCapitalize="none"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Password</label>
-                <input
-                  type="password"
-                  value={authForm.password}
-                  onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-                  className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2"
-                  placeholder="At least 6 characters"
-                />
-              </div>
-              {authError && <p className="text-sm font-medium text-red-600">{authError}</p>}
-              <button disabled={authBusy} type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-60">
-                {authBusy ? "Please wait…" : authMode === "login" ? "Log in" : "Create account"}
-              </button>
-            </form>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   const NavButton = ({ id, icon: Icon, label }) => (
     <button
       onClick={() => { setView(id); setClassroomSelectedUid(null); }}
@@ -777,6 +835,8 @@ export default function App() {
     </button>
   );
 
+  // Hide the admin/teacher account from the public Classroom roster.
+  const visibleStudents = allStudents.filter((s) => s.role !== "admin");
   const selectedStudent = allStudents.find((s) => s.uid === classroomSelectedUid);
   const selectedStudentLessonSubs = classroomSelectedUid
     ? lessonSubmissions.filter((s) => s.uid === classroomSelectedUid).sort((a, b) => a.lessonId - b.lessonId)
@@ -794,111 +854,187 @@ export default function App() {
             <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
               <BookOpen className="w-4 h-4 text-amber-400" />
             </div>
-            <span className={`font-extrabold text-lg ${NAVY}`}>Code-to-Create</span>
+            <span className={`font-extrabold text-lg ${NAVY}`}>{ORG_NAME}</span>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto">
-            <NavButton id="dashboard" icon={LayoutDashboard} label="Dashboard" />
+            <NavButton id="home" icon={HomeIcon} label="Home" />
             <NavButton id="lessons" icon={BookOpen} label="Lessons" />
             <NavButton id="creator" icon={Sparkles} label="Creator Space" />
             <NavButton id="gallery" icon={ImageIcon} label="Gallery" />
             <NavButton id="classroom" icon={GraduationCap} label="Classroom" />
-            <NavButton id="profile" icon={User} label="Profile" />
-            {isAdmin && (
-              <NavButton id="admin" icon={User} label="Admin" />
-            )}
+            {firebaseUser && <NavButton id="dashboard" icon={LayoutDashboard} label="Dashboard" />}
+            {firebaseUser && <NavButton id="profile" icon={User} label="Profile" />}
+            {isAdmin && <NavButton id="admin" icon={User} label="Admin" />}
           </div>
-          <button onClick={logout} className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-900">
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Log out</span>
-          </button>
+          {firebaseUser ? (
+            <button onClick={logout} className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-900">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Log out</span>
+            </button>
+          ) : (
+            <button onClick={goToAuth} className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-3 py-2 rounded-lg whitespace-nowrap">
+              <LogIn className="w-4 h-4" />
+              Log In
+            </button>
+          )}
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        {view === "dashboard" && (
-          <div className="space-y-5">
-            <Card className="p-5 flex flex-col sm:flex-row items-center gap-6">
-              <ProgressRing completed={completedCount} />
-              <div className="flex-1 text-center sm:text-left">
-                <div className="flex items-center gap-3 justify-center sm:justify-start">
-                  <Avatar url={studentData.photoURL} name={studentData.displayName || studentData.username} size={10} />
-                  <h2 className={`text-2xl font-extrabold ${NAVY}`}>
-                    Welcome back, {studentData.displayName || studentData.username}
-                  </h2>
-                </div>
-                <p className="text-slate-500 font-medium mt-1">
-                  {completedCount === 14
-                    ? "All 14 lessons complete — nice work! Check your certification steps in Lesson 14."
-                    : `${14 - completedCount} lesson${14 - completedCount === 1 ? "" : "s"} to go. Keep building.`}
-                </p>
-                <div className="mt-3">
-                  <div className="w-full bg-slate-200 rounded-full h-2.5 border border-slate-300 overflow-hidden">
-                    <div
-                      className="bg-amber-500 h-full rounded-full transition-all"
-                      style={{ width: `${(completedCount / 14) * 100}%` }}
+        {view === "home" && (
+          <HomeContent loggedIn={!!firebaseUser} onCtaClick={() => setView(firebaseUser ? "dashboard" : "auth")} />
+        )}
+
+        {view === "auth" && !firebaseUser && (
+          <div className="max-w-md mx-auto">
+            <div className="text-center mb-6">
+              <h1 className={`text-3xl font-extrabold ${NAVY} tracking-tight`}>Code-to-Create</h1>
+              <p className="text-slate-500 font-medium mt-1">Your web development learning platform</p>
+            </div>
+            <Card className="p-6">
+              <div className="flex gap-2 mb-5 bg-slate-100 rounded-xl p-1 border border-slate-200">
+                <button
+                  onClick={() => { setAuthMode("login"); setAuthError(""); }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${authMode === "login" ? "bg-white text-slate-900 shadow-sm border border-slate-900" : "text-slate-500"}`}
+                >
+                  Log in
+                </button>
+                <button
+                  onClick={() => { setAuthMode("signup"); setAuthError(""); }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${authMode === "signup" ? "bg-white text-slate-900 shadow-sm border border-slate-900" : "text-slate-500"}`}
+                >
+                  Create account
+                </button>
+              </div>
+              <form onSubmit={handleAuth} className="space-y-3">
+                {authMode === "signup" && (
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Display name</label>
+                    <input
+                      value={authForm.displayName}
+                      onChange={(e) => setAuthForm({ ...authForm, displayName: e.target.value })}
+                      className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2"
+                      placeholder="e.g. Amina K."
                     />
                   </div>
+                )}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Username</label>
+                  <input
+                    value={authForm.username}
+                    onChange={(e) => setAuthForm({ ...authForm, username: e.target.value })}
+                    className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2"
+                    placeholder="username"
+                    autoCapitalize="none"
+                  />
                 </div>
-              </div>
-            </Card>
-
-            <Card className="p-5">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className={`font-extrabold text-lg ${NAVY} flex items-center gap-2`}>
-                  <Target className="w-5 h-5 text-amber-600" /> Your goal
-                </h3>
-              </div>
-              {studentData.goal ? (
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-slate-700 font-medium">{studentData.goal}</p>
-                  <button onClick={() => setView("profile")} className="text-slate-400 hover:text-slate-900 shrink-0">
-                    <Pencil className="w-4 h-4" />
-                  </button>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Password</label>
+                  <input
+                    type="password"
+                    value={authForm.password}
+                    onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
+                    className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2"
+                    placeholder="At least 6 characters"
+                  />
                 </div>
-              ) : (
-                <button
-                  onClick={() => setView("profile")}
-                  className="text-amber-700 font-bold text-sm hover:underline"
-                >
-                  Set a goal for the program →
+                {authError && <p className="text-sm font-medium text-red-600">{authError}</p>}
+                <button disabled={authBusy} type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-60">
+                  {authBusy ? "Please wait…" : authMode === "login" ? "Log in" : "Create account"}
                 </button>
-              )}
+              </form>
             </Card>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Card className="p-5">
-                <h3 className={`font-extrabold ${NAVY} mb-2 flex items-center gap-2`}>
-                  <BookOpen className="w-5 h-5 text-amber-600" /> Continue learning
-                </h3>
-                <p className="text-slate-500 text-sm font-medium mb-3">Jump back into your next lesson.</p>
-                <button
-                  onClick={() => setView("lessons")}
-                  className="inline-flex items-center gap-1 text-sm font-bold bg-slate-900 text-white px-3 py-2 rounded-lg"
-                >
-                  Go to lessons <ChevronRight className="w-4 h-4" />
-                </button>
-              </Card>
-              <Card className="p-5">
-                <h3 className={`font-extrabold ${NAVY} mb-2 flex items-center gap-2`}>
-                  <Sparkles className="w-5 h-5 text-amber-600" /> Creator Space
-                </h3>
-                <p className="text-slate-500 text-sm font-medium mb-3">Share anything you're working on — no lesson required.</p>
-                <button
-                  onClick={() => setView("creator")}
-                  className="inline-flex items-center gap-1 text-sm font-bold bg-slate-900 text-white px-3 py-2 rounded-lg"
-                >
-                  Open Creator Space <ChevronRight className="w-4 h-4" />
-                </button>
-              </Card>
-            </div>
           </div>
+        )}
+
+        {view === "dashboard" && (
+          firebaseUser ? (
+            <div className="space-y-5">
+              <Card className="p-5 flex flex-col sm:flex-row items-center gap-6">
+                <ProgressRing completed={completedCount} />
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="flex items-center gap-3 justify-center sm:justify-start">
+                    <Avatar url={studentData.photoURL} name={studentData.displayName || studentData.username} size={10} />
+                    <h2 className={`text-2xl font-extrabold ${NAVY}`}>
+                      Welcome back, {studentData.displayName || studentData.username}
+                    </h2>
+                  </div>
+                  <p className="text-slate-500 font-medium mt-1">
+                    {completedCount === 14
+                      ? "All 14 lessons complete — nice work! Check your certification steps in Lesson 14."
+                      : `${14 - completedCount} lesson${14 - completedCount === 1 ? "" : "s"} to go. Keep building.`}
+                  </p>
+                  <div className="mt-3">
+                    <div className="w-full bg-slate-200 rounded-full h-2.5 border border-slate-300 overflow-hidden">
+                      <div
+                        className="bg-amber-500 h-full rounded-full transition-all"
+                        style={{ width: `${(completedCount / 14) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className={`font-extrabold text-lg ${NAVY} flex items-center gap-2`}>
+                    <Target className="w-5 h-5 text-amber-600" /> Your goal
+                  </h3>
+                </div>
+                {studentData.goal ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-slate-700 font-medium">{studentData.goal}</p>
+                    <button onClick={() => setView("profile")} className="text-slate-400 hover:text-slate-900 shrink-0">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setView("profile")}
+                    className="text-amber-700 font-bold text-sm hover:underline"
+                  >
+                    Set a goal for the program →
+                  </button>
+                )}
+              </Card>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Card className="p-5">
+                  <h3 className={`font-extrabold ${NAVY} mb-2 flex items-center gap-2`}>
+                    <BookOpen className="w-5 h-5 text-amber-600" /> Continue learning
+                  </h3>
+                  <p className="text-slate-500 text-sm font-medium mb-3">Jump back into your next lesson.</p>
+                  <button
+                    onClick={() => setView("lessons")}
+                    className="inline-flex items-center gap-1 text-sm font-bold bg-slate-900 text-white px-3 py-2 rounded-lg"
+                  >
+                    Go to lessons <ChevronRight className="w-4 h-4" />
+                  </button>
+                </Card>
+                <Card className="p-5">
+                  <h3 className={`font-extrabold ${NAVY} mb-2 flex items-center gap-2`}>
+                    <Sparkles className="w-5 h-5 text-amber-600" /> Creator Space
+                  </h3>
+                  <p className="text-slate-500 text-sm font-medium mb-3">Share anything you're working on — no lesson required.</p>
+                  <button
+                    onClick={() => setView("creator")}
+                    className="inline-flex items-center gap-1 text-sm font-bold bg-slate-900 text-white px-3 py-2 rounded-lg"
+                  >
+                    Open Creator Space <ChevronRight className="w-4 h-4" />
+                  </button>
+                </Card>
+              </div>
+            </div>
+          ) : (
+            <LockedPrompt message="Log in to see your dashboard and track your progress." onLoginClick={goToAuth} />
+          )
         )}
 
         {view === "lessons" && (
           <div className="space-y-3">
             <div className="flex items-baseline justify-between mb-1">
               <h2 className={`text-2xl font-extrabold ${NAVY}`}>Lessons</h2>
-              <span className="text-sm font-bold text-slate-500">{completedCount}/14 complete</span>
+              {firebaseUser && <span className="text-sm font-bold text-slate-500">{completedCount}/14 complete</span>}
             </div>
             {LESSONS.map((lesson) => {
               const item = studentData.items?.[lesson.id] || { status: "not_started" };
@@ -911,17 +1047,21 @@ export default function App() {
                     className="w-full flex items-center gap-3 p-4 text-left"
                   >
                     <span className="shrink-0">
-                      {item.status === "complete" ? (
-                        <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                      {firebaseUser ? (
+                        item.status === "complete" ? (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                        ) : (
+                          <Circle className="w-6 h-6 text-slate-300" />
+                        )
                       ) : (
-                        <Circle className="w-6 h-6 text-slate-300" />
+                        <Circle className="w-6 h-6 text-slate-200" />
                       )}
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-extrabold text-amber-700">WEEK {lesson.id}</span>
-                        {item.status === "in_progress" && <Badge tone="amber">In progress</Badge>}
-                        {item.status === "complete" && <Badge tone="green">Complete</Badge>}
+                        {firebaseUser && item.status === "in_progress" && <Badge tone="amber">In progress</Badge>}
+                        {firebaseUser && item.status === "complete" && <Badge tone="green">Complete</Badge>}
                       </div>
                       <h3 className={`font-bold ${NAVY} truncate`}>{lesson.title}</h3>
                     </div>
@@ -979,57 +1119,63 @@ export default function App() {
                         )}
                       </div>
 
-                      <div>
-                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Your progress notes</span>
-                        <textarea
-                          value={lessonDraft.note || ""}
-                          onChange={(e) => setLessonDraft({ ...lessonDraft, note: e.target.value })}
-                          placeholder="What did you build or learn this week?"
-                          rows={3}
-                          className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                        />
-                      </div>
+                      {firebaseUser ? (
+                        <>
+                          <div>
+                            <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Your progress notes</span>
+                            <textarea
+                              value={lessonDraft.note || ""}
+                              onChange={(e) => setLessonDraft({ ...lessonDraft, note: e.target.value })}
+                              placeholder="What did you build or learn this week?"
+                              rows={3}
+                              className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                            />
+                          </div>
 
-                      <CodeField
-                        value={lessonDraft.code || ""}
-                        onChange={(v) => setLessonDraft({ ...lessonDraft, code: v })}
-                      />
+                          <CodeField
+                            value={lessonDraft.code || ""}
+                            onChange={(v) => setLessonDraft({ ...lessonDraft, code: v })}
+                          />
 
-                      <ImagePicker
-                        label="Photos of your progress (optional)"
-                        existingImages={lessonDraft.images}
-                        onRemoveExisting={removeLessonExisting}
-                        pendingPreviews={lessonDraft.pendingPreviews}
-                        onAddFiles={addLessonFiles}
-                        onRemovePending={removeLessonPending}
-                      />
+                          <ImagePicker
+                            label="Photos of your progress (optional)"
+                            existingImages={lessonDraft.images}
+                            onRemoveExisting={removeLessonExisting}
+                            pendingPreviews={lessonDraft.pendingPreviews}
+                            onAddFiles={addLessonFiles}
+                            onRemovePending={removeLessonPending}
+                          />
 
-                      <div>
-                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Link to your code (optional)</span>
-                        <input
-                          value={lessonDraft.link || ""}
-                          onChange={(e) => setLessonDraft({ ...lessonDraft, link: e.target.value })}
-                          placeholder="CodePen / Replit / GitHub repo link"
-                          className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                        />
-                      </div>
+                          <div>
+                            <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Link to your code (optional)</span>
+                            <input
+                              value={lessonDraft.link || ""}
+                              onChange={(e) => setLessonDraft({ ...lessonDraft, link: e.target.value })}
+                              placeholder="CodePen / Replit / GitHub repo link"
+                              className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                            />
+                          </div>
 
-                      <div className="flex gap-2">
-                        <button
-                          disabled={savingLesson}
-                          onClick={() => saveLessonProgress(lesson.id, false)}
-                          className="flex-1 border-2 border-slate-900 text-slate-900 font-bold text-sm py-2 rounded-lg hover:bg-slate-100 disabled:opacity-60"
-                        >
-                          {savingLesson ? "Saving…" : "Save progress"}
-                        </button>
-                        <button
-                          disabled={savingLesson}
-                          onClick={() => saveLessonProgress(lesson.id, true)}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-2 rounded-lg disabled:opacity-60"
-                        >
-                          {savingLesson ? "Saving…" : "Mark complete"}
-                        </button>
-                      </div>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={savingLesson}
+                              onClick={() => saveLessonProgress(lesson.id, false)}
+                              className="flex-1 border-2 border-slate-900 text-slate-900 font-bold text-sm py-2 rounded-lg hover:bg-slate-100 disabled:opacity-60"
+                            >
+                              {savingLesson ? "Saving…" : "Save progress"}
+                            </button>
+                            <button
+                              disabled={savingLesson}
+                              onClick={() => saveLessonProgress(lesson.id, true)}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-2 rounded-lg disabled:opacity-60"
+                            >
+                              {savingLesson ? "Saving…" : "Mark complete"}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <LockedPrompt message="Log in or create a free account to track your progress on this lesson." onLoginClick={goToAuth} />
+                      )}
                     </div>
                   )}
                 </Card>
@@ -1044,38 +1190,43 @@ export default function App() {
               <h2 className={`text-2xl font-extrabold ${NAVY}`}>Creator Space</h2>
               <p className="text-slate-500 font-medium">Post anything you're making — side projects, experiments, questions, wins.</p>
             </div>
-            <Card className="p-4">
-              <form onSubmit={submitPost} className="space-y-3">
-                <input
-                  value={postDraft.title}
-                  onChange={(e) => setPostDraft({ ...postDraft, title: e.target.value })}
-                  placeholder="Title"
-                  className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 font-bold"
-                />
-                <textarea
-                  value={postDraft.content}
-                  onChange={(e) => setPostDraft({ ...postDraft, content: e.target.value })}
-                  placeholder="What's on your mind?"
-                  rows={3}
-                  className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                />
-                <CodeField value={postDraft.code} onChange={(v) => setPostDraft({ ...postDraft, code: v })} />
-                <ImagePicker
-                  pendingPreviews={postDraft.pendingPreviews}
-                  onAddFiles={addPostFiles}
-                  onRemovePending={removePostPending}
-                />
-                <input
-                  value={postDraft.link}
-                  onChange={(e) => setPostDraft({ ...postDraft, link: e.target.value })}
-                  placeholder="Link (optional)"
-                  className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                />
-                <button disabled={postBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
-                  <Plus className="w-4 h-4" /> {postBusy ? "Posting…" : "Post"}
-                </button>
-              </form>
-            </Card>
+
+            {firebaseUser ? (
+              <Card className="p-4">
+                <form onSubmit={submitPost} className="space-y-3">
+                  <input
+                    value={postDraft.title}
+                    onChange={(e) => setPostDraft({ ...postDraft, title: e.target.value })}
+                    placeholder="Title"
+                    className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 font-bold"
+                  />
+                  <textarea
+                    value={postDraft.content}
+                    onChange={(e) => setPostDraft({ ...postDraft, content: e.target.value })}
+                    placeholder="What's on your mind?"
+                    rows={3}
+                    className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                  />
+                  <CodeField value={postDraft.code} onChange={(v) => setPostDraft({ ...postDraft, code: v })} />
+                  <ImagePicker
+                    pendingPreviews={postDraft.pendingPreviews}
+                    onAddFiles={addPostFiles}
+                    onRemovePending={removePostPending}
+                  />
+                  <input
+                    value={postDraft.link}
+                    onChange={(e) => setPostDraft({ ...postDraft, link: e.target.value })}
+                    placeholder="Link (optional)"
+                    className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                  />
+                  <button disabled={postBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
+                    <Plus className="w-4 h-4" /> {postBusy ? "Posting…" : "Post"}
+                  </button>
+                </form>
+              </Card>
+            ) : (
+              <LockedPrompt message="Log in or create a free account to post in Creator Space." onLoginClick={goToAuth} />
+            )}
 
             <div className="space-y-3">
               {posts.length === 0 && (
@@ -1093,7 +1244,7 @@ export default function App() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
-                      {p.uid === firebaseUser.uid && (
+                      {firebaseUser && p.uid === firebaseUser.uid && (
                         <button onClick={(e) => { e.stopPropagation(); deletePost(p); }} className="text-slate-300 hover:text-red-600">
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1170,38 +1321,42 @@ export default function App() {
 
             {galleryTab === "portfolios" && (
               <div className="space-y-5">
-                <Card className="p-4">
-                  <form onSubmit={submitGallery} className="space-y-3">
-                    <input
-                      value={galleryDraft.title}
-                      onChange={(e) => setGalleryDraft({ ...galleryDraft, title: e.target.value })}
-                      placeholder="Project title"
-                      className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 font-bold"
-                    />
-                    <input
-                      value={galleryDraft.link}
-                      onChange={(e) => setGalleryDraft({ ...galleryDraft, link: e.target.value })}
-                      placeholder="Live site link"
-                      className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                    />
-                    <textarea
-                      value={galleryDraft.description}
-                      onChange={(e) => setGalleryDraft({ ...galleryDraft, description: e.target.value })}
-                      placeholder="Tell us about it"
-                      rows={2}
-                      className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                    />
-                    <CodeField value={galleryDraft.code} onChange={(v) => setGalleryDraft({ ...galleryDraft, code: v })} />
-                    <ImagePicker
-                      pendingPreviews={galleryDraft.pendingPreviews}
-                      onAddFiles={addGalleryFiles}
-                      onRemovePending={removeGalleryPending}
-                    />
-                    <button disabled={galleryBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
-                      <Plus className="w-4 h-4" /> {galleryBusy ? "Adding…" : "Add to gallery"}
-                    </button>
-                  </form>
-                </Card>
+                {firebaseUser ? (
+                  <Card className="p-4">
+                    <form onSubmit={submitGallery} className="space-y-3">
+                      <input
+                        value={galleryDraft.title}
+                        onChange={(e) => setGalleryDraft({ ...galleryDraft, title: e.target.value })}
+                        placeholder="Project title"
+                        className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 font-bold"
+                      />
+                      <input
+                        value={galleryDraft.link}
+                        onChange={(e) => setGalleryDraft({ ...galleryDraft, link: e.target.value })}
+                        placeholder="Live site link"
+                        className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                      />
+                      <textarea
+                        value={galleryDraft.description}
+                        onChange={(e) => setGalleryDraft({ ...galleryDraft, description: e.target.value })}
+                        placeholder="Tell us about it"
+                        rows={2}
+                        className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                      />
+                      <CodeField value={galleryDraft.code} onChange={(v) => setGalleryDraft({ ...galleryDraft, code: v })} />
+                      <ImagePicker
+                        pendingPreviews={galleryDraft.pendingPreviews}
+                        onAddFiles={addGalleryFiles}
+                        onRemovePending={removeGalleryPending}
+                      />
+                      <button disabled={galleryBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
+                        <Plus className="w-4 h-4" /> {galleryBusy ? "Adding…" : "Add to gallery"}
+                      </button>
+                    </form>
+                  </Card>
+                ) : (
+                  <LockedPrompt message="Log in or create a free account to add your portfolio to the gallery." onLoginClick={goToAuth} />
+                )}
                 <div className="grid sm:grid-cols-2 gap-4">
                   {gallery.length === 0 && (
                     <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">No portfolios yet — finish Lesson 14 and add yours!</p>
@@ -1215,7 +1370,7 @@ export default function App() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
-                          {g.uid === firebaseUser.uid && (
+                          {firebaseUser && g.uid === firebaseUser.uid && (
                             <button onClick={(e) => { e.stopPropagation(); deleteGalleryItem(g); }} className="text-slate-300 hover:text-red-600">
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1243,10 +1398,10 @@ export default function App() {
               <p className="text-slate-500 font-medium">Everyone in the program. Click a profile to see their work.</p>
             </div>
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {allStudents.length === 0 && (
+              {visibleStudents.length === 0 && (
                 <p className="text-center text-slate-400 font-medium py-8 sm:col-span-3">No students yet.</p>
               )}
-              {allStudents.map((s) => {
+              {visibleStudents.map((s) => {
                 const count = completedCountFor(s.items);
                 return (
                   <Card
@@ -1265,7 +1420,6 @@ export default function App() {
                       ) : (
                         <Badge tone="amber">{count}/14 lessons</Badge>
                       )}
-                      {s.role === "admin" && <Badge tone="slate">Admin</Badge>}
                     </div>
                   </Card>
                 );
@@ -1373,53 +1527,57 @@ export default function App() {
         )}
 
         {view === "profile" && (
-          <div className="space-y-5 max-w-lg">
-            <h2 className={`text-2xl font-extrabold ${NAVY}`}>Profile</h2>
-            <Card className="p-5 space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar url={studentData.photoURL} name={studentData.displayName || studentData.username} size={24} />
-                <div>
-                  <label className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-700 hover:underline cursor-pointer">
-                    <Camera className="w-4 h-4" />
-                    {avatarBusy ? "Uploading…" : "Change profile picture"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={avatarBusy}
-                      onChange={(e) => handleAvatarChange(e.target.files?.[0])}
-                    />
-                  </label>
+          firebaseUser ? (
+            <div className="space-y-5 max-w-lg">
+              <h2 className={`text-2xl font-extrabold ${NAVY}`}>Profile</h2>
+              <Card className="p-5 space-y-4">
+                <div className="flex items-center gap-4">
+                  <Avatar url={studentData.photoURL} name={studentData.displayName || studentData.username} size={24} />
+                  <div>
+                    <label className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-700 hover:underline cursor-pointer">
+                      <Camera className="w-4 h-4" />
+                      {avatarBusy ? "Uploading…" : "Change profile picture"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={avatarBusy}
+                        onChange={(e) => handleAvatarChange(e.target.files?.[0])}
+                      />
+                    </label>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Name</span>
-                <p className={`font-bold ${NAVY}`}>{studentData.displayName || studentData.username}</p>
-              </div>
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Username</span>
-                <p className="font-medium text-slate-600">{studentData.username}</p>
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Your goal for this program</label>
-                <textarea
-                  value={goalDraft}
-                  onChange={(e) => setGoalDraft(e.target.value)}
-                  placeholder="e.g. Build and publish my portfolio site by week 14"
-                  rows={3}
-                  className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
-                />
-                <button onClick={saveGoal} className="mt-2 bg-slate-900 text-white font-bold text-sm px-4 py-2 rounded-lg">
-                  Save goal
-                </button>
-              </div>
-              <div className="pt-3 border-t border-slate-200 flex items-center gap-2 text-sm">
-                <Trophy className="w-4 h-4 text-amber-600" />
-                <span className="font-medium text-slate-600">{completedCount} of 14 lessons complete</span>
-              </div>
-            </Card>
-          </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Name</span>
+                  <p className={`font-bold ${NAVY}`}>{studentData.displayName || studentData.username}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Username</span>
+                  <p className="font-medium text-slate-600">{studentData.username}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Your goal for this program</label>
+                  <textarea
+                    value={goalDraft}
+                    onChange={(e) => setGoalDraft(e.target.value)}
+                    placeholder="e.g. Build and publish my portfolio site by week 14"
+                    rows={3}
+                    className="w-full mt-1 border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
+                  />
+                  <button onClick={saveGoal} className="mt-2 bg-slate-900 text-white font-bold text-sm px-4 py-2 rounded-lg">
+                    Save goal
+                  </button>
+                </div>
+                <div className="pt-3 border-t border-slate-200 flex items-center gap-2 text-sm">
+                  <Trophy className="w-4 h-4 text-amber-600" />
+                  <span className="font-medium text-slate-600">{completedCount} of 14 lessons complete</span>
+                </div>
+              </Card>
+            </div>
+          ) : (
+            <LockedPrompt message="Log in to view and edit your profile." onLoginClick={goToAuth} />
+          )
         )}
 
         {view === "admin" && isAdmin && (
@@ -1455,6 +1613,13 @@ export default function App() {
           </div>
         )}
       </main>
+
+      <footer className="bg-slate-900 text-slate-300 mt-4">
+        <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm">
+          <p className="font-bold text-white">{ORG_NAME}</p>
+          <p className="mt-1">© {new Date().getFullYear()} {ORG_NAME}. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 }
