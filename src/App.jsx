@@ -35,29 +35,25 @@ const LESSONS = [
 
 // ---- Public homepage content — edit these directly with your real info ----
 // For photos: drop image files into the /public folder of this project
-// (e.g. /public/team/jane.jpg) and reference them below as "/team/jane.jpg".
+// (e.g. /public/team/dorine.jpg) and reference them below as "/team/dorine.jpg".
 // These are your own site's static assets, so there's no size limit to
 // worry about and nothing needs to be uploaded through the app itself.
-const ORG_NAME = "EngineOrg";
-const ORG_TAGLINE = "Building pathways into tech for the next generation.";
+const ORG_NAME = "Code to Create";
+const ORG_TAGLINE = "Free web development training that opens doors to real opportunities.";
 const ORG_MISSION =
-  "Write your mission statement here. What does EngineOrg exist to do, who does it serve, and why does that work matter? A few sentences is plenty — this shows up front and center on your homepage.";
+  "Code to Create exists to empower refugees and immigrants with the technical skills, credentials, and real project experience they need to pursue jobs and opportunities in tech. Through free, guided instruction, students earn an industry-recognized certification and build a personal portfolio they can carry into interviews, applications, and their next chapter.";
 
 const TEAM_MEMBERS = [
-  { name: "Dorine", role: "Founder & Executive Director", bio: "A sentence or two about your background and why you started EngineOrg.", photo: "/team/placeholder.jpg" },
-  { name: "Team Member Name", role: "Program Director", bio: "A sentence or two about their role and what they focus on.", photo: "/team/placeholder.jpg" },
-  { name: "Team Member Name", role: "Volunteer Coordinator", bio: "A sentence or two about their role.", photo: "/team/placeholder.jpg" },
+  { name: "Dorine Zolfaghari", role: "Co-Founder", bio: "Co-founded Code to Create to make web development education free and accessible for refugee and immigrant communities.", photo: "/team/dorine.jpg" },
+  { name: "Aylin Korkmaz", role: "Co-Founder", bio: "Co-founded Code to Create to help students build real skills, real projects, and real opportunities in tech.", photo: "/team/aylin.jpg" },
 ];
 
-const PARTNERS = [
-  { name: "Partner Organization", logo: "/partners/placeholder.png", link: "https://example.com" },
-  { name: "Partner Organization", logo: "/partners/placeholder.png", link: "https://example.com" },
-  { name: "Partner Organization", logo: "/partners/placeholder.png", link: "https://example.com" },
+// Where the program is currently taught. Add more here as new sites come on.
+const COMMUNITY_SITES = [
+  { name: "Youth Voices Community", logo: "/partners/youthvoicescommunity.png", link: "https://youthvoicescommunity.org/" },
 ];
 
-const PROGRAMS = [
-  { name: "Code-to-Create", description: "A 14-week beginner web development program." },
-];
+const FREECODECAMP_LINK = "https://www.freecodecamp.org/learn/responsive-web-design-v9/";
 
 const NAVY = "text-slate-900";
 const MAX_ORIGINAL_FILE_BYTES = 12 * 1024 * 1024; // guard against absurd originals
@@ -134,7 +130,7 @@ function Card({ children, className = "", ...rest }) {
 function Badge({ children, tone = "slate" }) {
   const tones = {
     slate: "bg-slate-100 text-slate-700 border-slate-300",
-    amber: "bg-amber-100 text-amber-800 border-amber-300",
+    amber: "bg-violet-100 text-violet-800 border-violet-300",
     green: "bg-emerald-100 text-emerald-800 border-emerald-300",
   };
   return (
@@ -190,7 +186,7 @@ function ImagePicker({ existingImages = [], onRemoveExisting, pendingPreviews, o
         ))}
         {pendingPreviews.map((src, i) => (
           <div key={`pending-${i}`} className="relative">
-            <img src={src} alt="" className="w-16 h-16 object-cover rounded-lg border-2 border-amber-400" />
+            <img src={src} alt="" className="w-16 h-16 object-cover rounded-lg border-2 border-violet-400" />
             <button
               type="button"
               onClick={() => onRemovePending(i)}
@@ -285,7 +281,7 @@ function SubmissionModal({ item, onClose }) {
         )}
 
         {item.link && (
-          <a href={item.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mb-3">
+          <a href={item.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 hover:underline mb-3">
             <ExternalLink className="w-3.5 h-3.5" /> Open link
           </a>
         )}
@@ -306,7 +302,7 @@ function SubmissionModal({ item, onClose }) {
               </span>
               <button
                 onClick={() => navigator.clipboard?.writeText(item.code)}
-                className="text-xs font-bold text-amber-700 hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-violet-700 hover:underline flex items-center gap-1"
               >
                 <Copy className="w-3 h-3" /> Copy
               </button>
@@ -338,7 +334,7 @@ function ProgressRing({ completed, total = 14 }) {
             <line
               key={i}
               x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={filled ? "#d97706" : "#cbd5e1"}
+              stroke={filled ? "#7c3aed" : "#cbd5e1"}
               strokeWidth={filled ? 4 : 3}
               strokeLinecap="round"
             />
@@ -366,8 +362,8 @@ function HomeContent({ loggedIn, onCtaClick }) {
         <h1 className={`text-4xl sm:text-5xl font-extrabold ${NAVY} tracking-tight`}>{ORG_NAME}</h1>
         <p className="text-slate-500 font-medium text-lg mt-3 max-w-xl mx-auto">{ORG_TAGLINE}</p>
         <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-          <a href="#programs" className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-lg">
-            See Our Programs
+          <a href="#about" className="bg-violet-500 hover:bg-violet-600 text-white font-bold px-5 py-2.5 rounded-lg">
+            About the Program
           </a>
           <a href="#team" className="border-2 border-slate-900 text-slate-900 font-bold px-5 py-2.5 rounded-lg hover:bg-white">
             Meet the Team
@@ -377,29 +373,39 @@ function HomeContent({ loggedIn, onCtaClick }) {
 
       <section id="mission" className="max-w-3xl mx-auto">
         <Card className="p-8 text-center">
-          <h2 className="text-xs font-extrabold uppercase tracking-widest text-amber-700 mb-3">Our Mission</h2>
+          <h2 className="text-xs font-extrabold uppercase tracking-widest text-violet-700 mb-3">Our Mission</h2>
           <p className={`text-lg font-medium ${NAVY} leading-relaxed`}>{ORG_MISSION}</p>
         </Card>
       </section>
 
-      <section id="programs">
-        <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-6`}>Our Programs</h2>
-        <div className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
-          {PROGRAMS.map((p) => (
-            <Card key={p.name} className="p-6 text-center">
-              <h3 className={`font-extrabold text-lg ${NAVY}`}>{p.name}</h3>
-              <p className="text-slate-500 text-sm mt-1">{p.description}</p>
-              <button onClick={onCtaClick} className="mt-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-4 py-2 rounded-lg">
-                {loggedIn ? "Go to Dashboard" : "Student Login"}
-              </button>
-            </Card>
-          ))}
-        </div>
+      <section id="about" className="max-w-3xl mx-auto">
+        <Card className="p-8">
+          <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-4`}>About the Program</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Code to Create is a free, 14-week web development course built around the{" "}
+            <a href={FREECODECAMP_LINK} target="_blank" rel="noreferrer" className="font-bold text-violet-700 hover:underline">
+              freeCodeCamp Responsive Web Design Certification
+            </a>{" "}
+            — a widely recognized, entry-level credential. Each week pairs a short lesson with
+            hands-on practice, building toward the five projects required for certification.
+          </p>
+          <p className="text-slate-600 leading-relaxed mt-3">
+            Alongside the certification, every student builds a personal portfolio website —
+            something real they can show an employer, an internship coordinator, or anyone
+            interested in what they can do. Students can keep expanding that portfolio long
+            after the course ends.
+          </p>
+          <div className="text-center mt-6">
+            <button onClick={onCtaClick} className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-lg">
+              {loggedIn ? "Go to Dashboard" : "Student Login"}
+            </button>
+          </div>
+        </Card>
       </section>
 
       <section id="team">
-        <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-6`}>Founders & Team</h2>
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-6`}>Founders</h2>
+        <div className="grid sm:grid-cols-2 gap-4 max-w-xl mx-auto">
           {TEAM_MEMBERS.map((m, i) => (
             <Card key={i} className="p-5 text-center">
               <img
@@ -409,19 +415,19 @@ function HomeContent({ loggedIn, onCtaClick }) {
                 onError={(e) => { e.target.style.display = "none"; }}
               />
               <h3 className={`font-extrabold ${NAVY} mt-3`}>{m.name}</h3>
-              <p className="text-amber-700 text-xs font-bold uppercase tracking-wide mt-0.5">{m.role}</p>
+              <p className="text-violet-700 text-xs font-bold uppercase tracking-wide mt-0.5">{m.role}</p>
               <p className="text-slate-500 text-sm mt-2">{m.bio}</p>
             </Card>
           ))}
         </div>
       </section>
 
-      <section id="partners">
-        <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-6`}>Our Partners</h2>
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {PARTNERS.map((p, i) => (
+      <section id="where-we-teach">
+        <h2 className={`text-2xl font-extrabold ${NAVY} text-center mb-6`}>Where We Teach</h2>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-xl mx-auto">
+          {COMMUNITY_SITES.map((p, i) => (
             <a key={i} href={p.link} target="_blank" rel="noreferrer">
-              <Card className="p-5 text-center hover:border-amber-500 transition h-full">
+              <Card className="p-5 text-center hover:border-violet-500 transition h-full">
                 <img
                   src={p.logo}
                   alt={p.name}
@@ -429,7 +435,7 @@ function HomeContent({ loggedIn, onCtaClick }) {
                   onError={(e) => { e.target.style.display = "none"; }}
                 />
                 <h3 className={`font-extrabold ${NAVY} mt-3`}>{p.name}</h3>
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 mt-1">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-violet-700 mt-1">
                   Visit site <ExternalLink className="w-3 h-3" />
                 </span>
               </Card>
@@ -852,7 +858,7 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-amber-400" />
+              <BookOpen className="w-4 h-4 text-violet-400" />
             </div>
             <span className={`font-extrabold text-lg ${NAVY}`}>{ORG_NAME}</span>
           </div>
@@ -967,7 +973,7 @@ export default function App() {
                   <div className="mt-3">
                     <div className="w-full bg-slate-200 rounded-full h-2.5 border border-slate-300 overflow-hidden">
                       <div
-                        className="bg-amber-500 h-full rounded-full transition-all"
+                        className="bg-violet-500 h-full rounded-full transition-all"
                         style={{ width: `${(completedCount / 14) * 100}%` }}
                       />
                     </div>
@@ -978,7 +984,7 @@ export default function App() {
               <Card className="p-5">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className={`font-extrabold text-lg ${NAVY} flex items-center gap-2`}>
-                    <Target className="w-5 h-5 text-amber-600" /> Your goal
+                    <Target className="w-5 h-5 text-violet-600" /> Your goal
                   </h3>
                 </div>
                 {studentData.goal ? (
@@ -991,7 +997,7 @@ export default function App() {
                 ) : (
                   <button
                     onClick={() => setView("profile")}
-                    className="text-amber-700 font-bold text-sm hover:underline"
+                    className="text-violet-700 font-bold text-sm hover:underline"
                   >
                     Set a goal for the program →
                   </button>
@@ -1001,7 +1007,7 @@ export default function App() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <Card className="p-5">
                   <h3 className={`font-extrabold ${NAVY} mb-2 flex items-center gap-2`}>
-                    <BookOpen className="w-5 h-5 text-amber-600" /> Continue learning
+                    <BookOpen className="w-5 h-5 text-violet-600" /> Continue learning
                   </h3>
                   <p className="text-slate-500 text-sm font-medium mb-3">Jump back into your next lesson.</p>
                   <button
@@ -1013,7 +1019,7 @@ export default function App() {
                 </Card>
                 <Card className="p-5">
                   <h3 className={`font-extrabold ${NAVY} mb-2 flex items-center gap-2`}>
-                    <Sparkles className="w-5 h-5 text-amber-600" /> Creator Space
+                    <Sparkles className="w-5 h-5 text-violet-600" /> Creator Space
                   </h3>
                   <p className="text-slate-500 text-sm font-medium mb-3">Share anything you're working on — no lesson required.</p>
                   <button
@@ -1059,7 +1065,7 @@ export default function App() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-extrabold text-amber-700">WEEK {lesson.id}</span>
+                        <span className="text-xs font-extrabold text-violet-700">WEEK {lesson.id}</span>
                         {firebaseUser && item.status === "in_progress" && <Badge tone="amber">In progress</Badge>}
                         {firebaseUser && item.status === "complete" && <Badge tone="green">Complete</Badge>}
                       </div>
@@ -1094,7 +1100,7 @@ export default function App() {
                           </div>
                         ) : link ? (
                           <div className="flex items-center gap-2 mt-1">
-                            <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline">
+                            <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 hover:underline">
                               <ExternalLink className="w-3.5 h-3.5" /> Open Week {lesson.id} slides
                             </a>
                             {isAdmin && (
@@ -1219,7 +1225,7 @@ export default function App() {
                     placeholder="Link (optional)"
                     className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
                   />
-                  <button disabled={postBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
+                  <button disabled={postBusy} type="submit" className="flex items-center gap-1 bg-violet-500 hover:bg-violet-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
                     <Plus className="w-4 h-4" /> {postBusy ? "Posting…" : "Post"}
                   </button>
                 </form>
@@ -1233,7 +1239,7 @@ export default function App() {
                 <p className="text-center text-slate-400 font-medium py-8">Nothing here yet — be the first to post.</p>
               )}
               {posts.map((p) => (
-                <Card key={p.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(p)}>
+                <Card key={p.id} className="p-4 cursor-pointer hover:border-violet-500 transition" onClick={() => setModalItem(p)}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <Avatar url={p.photoURL} name={p.displayName} />
@@ -1254,7 +1260,7 @@ export default function App() {
                   {p.content && <p className="text-slate-700 text-sm mt-2 whitespace-pre-wrap line-clamp-3">{p.content}</p>}
                   <PreviewRow images={p.images} code={p.code} />
                   {p.link && (
-                    <a href={p.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
+                    <a href={p.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 hover:underline mt-2">
                       <ExternalLink className="w-3.5 h-3.5" /> View link
                     </a>
                   )}
@@ -1296,7 +1302,7 @@ export default function App() {
                 {lessonSubmissions.map((s) => (
                   <Card
                     key={s.id}
-                    className="p-4 cursor-pointer hover:border-amber-500 transition"
+                    className="p-4 cursor-pointer hover:border-violet-500 transition"
                     onClick={() => setModalItem({ ...s, title: s.lessonTitle, content: s.note })}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -1349,7 +1355,7 @@ export default function App() {
                         onAddFiles={addGalleryFiles}
                         onRemovePending={removeGalleryPending}
                       />
-                      <button disabled={galleryBusy} type="submit" className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
+                      <button disabled={galleryBusy} type="submit" className="flex items-center gap-1 bg-violet-500 hover:bg-violet-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
                         <Plus className="w-4 h-4" /> {galleryBusy ? "Adding…" : "Add to gallery"}
                       </button>
                     </form>
@@ -1362,7 +1368,7 @@ export default function App() {
                     <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">No portfolios yet — finish Lesson 14 and add yours!</p>
                   )}
                   {gallery.map((g) => (
-                    <Card key={g.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(g)}>
+                    <Card key={g.id} className="p-4 cursor-pointer hover:border-violet-500 transition" onClick={() => setModalItem(g)}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5">
                           <Avatar url={g.photoURL} name={g.displayName} />
@@ -1380,7 +1386,7 @@ export default function App() {
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-0.5 ml-[42px]">by {g.displayName}</p>
                       {g.description && <p className="text-slate-700 text-sm mt-2 line-clamp-2">{g.description}</p>}
                       <PreviewRow images={g.images} code={g.code} />
-                      <a href={g.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline mt-2">
+                      <a href={g.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 hover:underline mt-2">
                         <ExternalLink className="w-3.5 h-3.5" /> Visit site
                       </a>
                     </Card>
@@ -1406,7 +1412,7 @@ export default function App() {
                 return (
                   <Card
                     key={s.uid}
-                    className="p-4 cursor-pointer hover:border-amber-500 transition text-center"
+                    className="p-4 cursor-pointer hover:border-violet-500 transition text-center"
                     onClick={() => setClassroomSelectedUid(s.uid)}
                   >
                     <div className="flex justify-center">
@@ -1454,7 +1460,7 @@ export default function App() {
 
             <div>
               <h3 className={`font-extrabold text-lg ${NAVY} mb-2 flex items-center gap-2`}>
-                <GalleryHorizontalEnd className="w-5 h-5 text-amber-600" /> Lesson Progress
+                <GalleryHorizontalEnd className="w-5 h-5 text-violet-600" /> Lesson Progress
               </h3>
               {selectedStudentLessonSubs.length === 0 ? (
                 <p className="text-slate-400 text-sm font-medium">No lessons shared yet.</p>
@@ -1463,7 +1469,7 @@ export default function App() {
                   {selectedStudentLessonSubs.map((s) => (
                     <Card
                       key={s.id}
-                      className="p-4 cursor-pointer hover:border-amber-500 transition"
+                      className="p-4 cursor-pointer hover:border-violet-500 transition"
                       onClick={() => setModalItem({ ...s, title: s.lessonTitle, content: s.note })}
                     >
                       <div className="flex items-center justify-between">
@@ -1482,14 +1488,14 @@ export default function App() {
 
             <div>
               <h3 className={`font-extrabold text-lg ${NAVY} mb-2 flex items-center gap-2`}>
-                <Sparkles className="w-5 h-5 text-amber-600" /> Creator Space Posts
+                <Sparkles className="w-5 h-5 text-violet-600" /> Creator Space Posts
               </h3>
               {selectedStudentPosts.length === 0 ? (
                 <p className="text-slate-400 text-sm font-medium">No posts yet.</p>
               ) : (
                 <div className="space-y-3">
                   {selectedStudentPosts.map((p) => (
-                    <Card key={p.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(p)}>
+                    <Card key={p.id} className="p-4 cursor-pointer hover:border-violet-500 transition" onClick={() => setModalItem(p)}>
                       <div className="flex items-center justify-between">
                         {p.title && <h4 className={`font-bold ${NAVY}`}>{p.title}</h4>}
                         <Maximize2 className="w-3.5 h-3.5 text-slate-300 shrink-0" />
@@ -1504,14 +1510,14 @@ export default function App() {
 
             <div>
               <h3 className={`font-extrabold text-lg ${NAVY} mb-2 flex items-center gap-2`}>
-                <Rocket className="w-5 h-5 text-amber-600" /> Finished Portfolios
+                <Rocket className="w-5 h-5 text-violet-600" /> Finished Portfolios
               </h3>
               {selectedStudentGallery.length === 0 ? (
                 <p className="text-slate-400 text-sm font-medium">No portfolio submitted yet.</p>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-4">
                   {selectedStudentGallery.map((g) => (
-                    <Card key={g.id} className="p-4 cursor-pointer hover:border-amber-500 transition" onClick={() => setModalItem(g)}>
+                    <Card key={g.id} className="p-4 cursor-pointer hover:border-violet-500 transition" onClick={() => setModalItem(g)}>
                       <div className="flex items-center justify-between">
                         <h4 className={`font-bold ${NAVY}`}>{g.title}</h4>
                         <Maximize2 className="w-3.5 h-3.5 text-slate-300 shrink-0" />
@@ -1534,7 +1540,7 @@ export default function App() {
                 <div className="flex items-center gap-4">
                   <Avatar url={studentData.photoURL} name={studentData.displayName || studentData.username} size={24} />
                   <div>
-                    <label className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-700 hover:underline cursor-pointer">
+                    <label className="inline-flex items-center gap-1.5 text-sm font-bold text-violet-700 hover:underline cursor-pointer">
                       <Camera className="w-4 h-4" />
                       {avatarBusy ? "Uploading…" : "Change profile picture"}
                       <input
@@ -1570,7 +1576,7 @@ export default function App() {
                   </button>
                 </div>
                 <div className="pt-3 border-t border-slate-200 flex items-center gap-2 text-sm">
-                  <Trophy className="w-4 h-4 text-amber-600" />
+                  <Trophy className="w-4 h-4 text-violet-600" />
                   <span className="font-medium text-slate-600">{completedCount} of 14 lessons complete</span>
                 </div>
               </Card>
@@ -1618,6 +1624,12 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm">
           <p className="font-bold text-white">{ORG_NAME}</p>
           <p className="mt-1">© {new Date().getFullYear()} {ORG_NAME}. All rights reserved.</p>
+          <p className="mt-3 text-slate-400">
+            Looking for STEM kits and youth engineering workshops? Visit our sister organization{" "}
+            <a href="https://engineorg.com" target="_blank" rel="noreferrer" className="font-bold text-violet-300 hover:underline">
+              EngineOrg
+            </a>.
+          </p>
         </div>
       </footer>
     </div>
