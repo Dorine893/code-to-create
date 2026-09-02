@@ -44,13 +44,13 @@ const ORG_MISSION =
   "Code to Create exists to empower refugees and immigrants with the technical skills, credentials, and real project experience they need to pursue jobs and opportunities in tech. Through free, guided instruction, students earn an industry-recognized certification and build a personal portfolio they can carry into interviews, applications, and their next chapter.";
 
 const TEAM_MEMBERS = [
-  { name: "Dorine Zolfaghari", role: "Co-Founder", bio: "Co-founded Code to Create to make web development education free and accessible for refugee and immigrant communities.", photo: "/team/dorine.jpg" },
-  { name: "Aylin Korkmaz", role: "Co-Founder", bio: "Co-founded Code to Create to help students build real skills, real projects, and real opportunities in tech.", photo: "/team/aylin.jpg" },
+  { name: "Dorine Zolfaghari", role: "Founder", bio: "Made Code to Create to make web development education free and accessible for refugee and immigrant communities.", photo: "/team/dorine.jpg" },
+  { name: "Aylin Korkmaz", role: "Instructor", bio: "Teaches to help participants build work force ready skills, real projects, and real opportunities in tech.", photo: "/team/aylin.jpg" },
 ];
 
 // Where the program is currently taught. Add more here as new sites come on.
 const COMMUNITY_SITES = [
-  { name: "Youth Voices Community", logo: "/partners/youthvoicescommunity.png", link: "https://youthvoicescommunity.org/" },
+  { name: "Youth Voices Community: Digikazi Digital Literacy Program", logo: "/partners/youthvoicescommunity.png", link: "https://youthvoicescommunity.org/" },
 ];
 
 const FREECODECAMP_LINK = "https://www.freecodecamp.org/learn/responsive-web-design-v9/";
@@ -165,7 +165,7 @@ function LockedPrompt({ message, onLoginClick }) {
   );
 }
 
-function ImagePicker({ existingImages = [], onRemoveExisting, pendingPreviews, onAddFiles, onRemovePending, label = "Screenshots (optional)" }) {
+function ImagePicker({ existingImages = [], onRemoveExisting, pendingPreviews, onAddFiles, onRemovePending, label = "Add screenshots of your browser!" }) {
   return (
     <div>
       <span className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
@@ -214,7 +214,7 @@ function ImagePicker({ existingImages = [], onRemoveExisting, pendingPreviews, o
   );
 }
 
-function CodeField({ value, onChange, label = "Paste your code (optional)" }) {
+function CodeField({ value, onChange, label = "Paste your code" }) {
   return (
     <div>
       <span className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
@@ -1194,7 +1194,7 @@ export default function App() {
           <div className="space-y-5">
             <div>
               <h2 className={`text-2xl font-extrabold ${NAVY}`}>Creator Space</h2>
-              <p className="text-slate-500 font-medium">Post anything you're making — side projects, experiments, questions, wins.</p>
+              <p className="text-slate-500 font-medium">Post anything you are making:side projects, experiments, questions, achievements.</p>
             </div>
 
             {firebaseUser ? (
@@ -1222,7 +1222,7 @@ export default function App() {
                   <input
                     value={postDraft.link}
                     onChange={(e) => setPostDraft({ ...postDraft, link: e.target.value })}
-                    placeholder="Link (optional)"
+                    placeholder="Link"
                     className="w-full border-2 border-slate-300 focus:border-slate-900 outline-none rounded-lg px-3 py-2 text-sm"
                   />
                   <button disabled={postBusy} type="submit" className="flex items-center gap-1 bg-violet-500 hover:bg-violet-600 text-white font-bold text-sm px-4 py-2 rounded-lg disabled:opacity-60">
@@ -1236,7 +1236,7 @@ export default function App() {
 
             <div className="space-y-3">
               {posts.length === 0 && (
-                <p className="text-center text-slate-400 font-medium py-8">Nothing here yet — be the first to post.</p>
+                <p className="text-center text-slate-400 font-medium py-8">Nothing here yet — be the first to post!</p>
               )}
               {posts.map((p) => (
                 <Card key={p.id} className="p-4 cursor-pointer hover:border-violet-500 transition" onClick={() => setModalItem(p)}>
@@ -1296,7 +1296,7 @@ export default function App() {
               <div className="grid sm:grid-cols-2 gap-4">
                 {lessonSubmissions.length === 0 && (
                   <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">
-                    No lesson progress shared yet — it'll show up here as soon as someone saves a lesson.
+                    No lesson progress shared yet, it will show up here as soon as someone saves a lesson.
                   </p>
                 )}
                 {lessonSubmissions.map((s) => (
@@ -1365,7 +1365,7 @@ export default function App() {
                 )}
                 <div className="grid sm:grid-cols-2 gap-4">
                   {gallery.length === 0 && (
-                    <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">No portfolios yet — finish Lesson 14 and add yours!</p>
+                    <p className="text-center text-slate-400 font-medium py-8 sm:col-span-2">No portfolios yet. Finish Lesson 14 and post it here!</p>
                   )}
                   {gallery.map((g) => (
                     <Card key={g.id} className="p-4 cursor-pointer hover:border-violet-500 transition" onClick={() => setModalItem(g)}>
