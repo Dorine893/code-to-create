@@ -44,8 +44,8 @@ const ORG_MISSION =
   "Code to Create exists to empower refugees and immigrants with the technical skills, credentials, and real project experience they need to pursue jobs and opportunities in tech. Through free, guided instruction, students earn an industry-recognized certification and build a personal portfolio they can carry into interviews, applications, and their next chapter.";
 
 const TEAM_MEMBERS = [
-  { name: "Dorine Zolfaghari", role: "Founder", bio: "Made Code to Create to make web development education free and accessible for refugee and immigrant communities.", photo: "/team/dorine.jpg" },
-  { name: "Aylin Korkmaz", role: "Instructor", bio: "Teaches to help participants build work force ready skills, real projects, and real opportunities in tech.", photo: "/team/aylin.jpg" },
+  { name: "Dorine Zolfaghari", role: "Founder", bio: "Made Code to Create to make web development education free and accessible for refugee and immigrant communities. Teaches students weekly", photo: "/team/dorine.jpg" },
+  { name: "Aylin Korkmaz", role: "Founder", bio: "Teaches to help participants build work force ready skills, real projects, and real opportunities in tech.", photo: "/team/aylin.jpg" },
 ];
 
 // Where the program is currently taught. Add more here as new sites come on.
